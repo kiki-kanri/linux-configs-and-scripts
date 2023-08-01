@@ -1,0 +1,1 @@
+0 3 */3 * * /root/upgrade_portainer.sh > /dev/null
