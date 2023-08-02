@@ -11,6 +11,11 @@ wget -O- https://nginx.org/keys/nginx_signing.key | sudo gpg --dearmor >/usr/sha
 	sudo mkdir -p /etc/nginx/certs &&
 	sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096 &&
 
+	# Copy nginx file
+	sudo rm -rf /etc/nginx/nginx.conf &&
+	cd ../configs/nginx &&
+	sudo cp -r ./domains ./public ./nginx.conf /etc/nginx/ &&
+
 	# Systemctl
 	sudo systemctl enable nginx &&
 	sudo systemctl restart nginx
