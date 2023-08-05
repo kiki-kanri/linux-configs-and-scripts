@@ -6,11 +6,13 @@
 ## 相關設定
 1. 自動清理3天前 journal log crontab (每天3點清理)
 	```
+	# Clear journal log
 	0 3 * * * journalctl --vacuum-time=3d > /dev/null
 	```
 
 2. 自動更新portainer (每三天3點更新)
 	```
+	# Upgrade portainer
 	0 3 */3 * * /root/upgrade_portainer.sh > /dev/null
 	```
 
