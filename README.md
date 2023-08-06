@@ -2,7 +2,6 @@
 
 給新建置的ubuntu22.04(或以上)系統安裝基礎程式的script與config
 
-
 ## 相關設定
 1. 自動清理3天前 journal log crontab (每天3點清理)
 	```
