@@ -6,8 +6,7 @@
 sudo apt-get install locales tzdata
 
 # Set timezone and locale
-DEBIAN_FRONTEND=noninteractive &&
-    sudo ln -fs /usr/share/zoneinfo/Asia/Taipei /etc/localtime &&
+sudo ln -fs /usr/share/zoneinfo/Asia/Taipei /etc/localtime &&
     sudo dpkg-reconfigure -f noninteractive tzdata &&
     sudo locale-gen zh_TW.UTF-8 &&
     sudo update-locale LANG=zh_TW.UTF-8 &&
