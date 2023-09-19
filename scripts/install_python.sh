@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install python 3.11.4
+# Install python 3.11
 
 sudo add-apt-repository ppa:deadsnakes/ppa -y &&
 	sudo apt-get update &&

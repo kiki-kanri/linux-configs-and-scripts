@@ -1,5 +1,5 @@
 #!/bin/bash
 
-# Install portainer and auto upgrade cron
+# Install portainer
 
 sh ./upgrade_portainer.sh

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install nodejs 20.5.0
+# Install nodejs 20
 
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - &&
 	sudo apt-get update &&
