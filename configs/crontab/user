@@ -1,0 +1,2 @@
+# Upgrade pnpm
+0 3 */3 * * corepack prepare pnpm@latest --activate > /dev/null

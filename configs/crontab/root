@@ -1,0 +1,10 @@
+# Clear journal log
+0 3 * * * journalctl --vacuum-time=3d > /dev/null
+
+# Upgrade npm and pnpm
+0 3 */3 * * corepack prepare pnpm@latest --activate > /dev/null
+0 3 */3 * * npm i npm@latest -g > /dev/null
+0 3 */3 * * npm upgrade -g > /dev/null
+
+# Upgrade portainer
+0 3 */3 * * /root/upgrade_portainer.sh > /dev/null
