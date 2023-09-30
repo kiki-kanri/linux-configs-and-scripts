@@ -1,2 +1,3 @@
 # Upgrade pnpm
-0 3 */3 * * corepack prepare pnpm@latest --activate > /dev/null
+0 3 */3 * * corepack install --global pnpm@latest > /dev/null
+0 3 */3 * * corepack install --global yarn@stable > /dev/null
