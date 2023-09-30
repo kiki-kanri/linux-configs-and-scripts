@@ -4,19 +4,21 @@
 
 ## Configs
 1. root使用的crontab(configs/crontab/root)
+  - 自動清理docker build快取 (每天3點清理)
   - 自動清理3天前 journal log crontab (每天3點清理)
-  - 更新npm與pnpm (每三天3點更新)
+  - 更新npm與pnpm與yarn (每三天3點更新)
   - 自動更新portainer (每三天3點更新，**需要複製`scripts/upgrade_portainer.sh`到`/root`資料夾**)
 
 2. 一般用戶使用的crontab(configs/crontab/user)
   - 更新pnpm (每三天3點更新)
+  - 更新yarn (每三天3點更新)
 
 3. SSH server只允許ipv4
   ```
   AddressFamily inet
   ```
 
-4. 關閉系統的ipv4，編輯/etc/sysctl.conf
+1. 關閉系統的ipv4，編輯/etc/sysctl.conf
   ```
   net.ipv6.conf.all.disable_ipv6 = 1
   net.ipv6.conf.default.disable_ipv6 = 1
