@@ -1,5 +1,5 @@
 # Clear docker build cache
-0 3 */3 * * docker builder prune -a --force > /dev/null
+0 3 */3 * * docker builder prune -f > /dev/null
 
 # Clear journal log
 0 3 * * * journalctl --vacuum-time=3d > /dev/null
