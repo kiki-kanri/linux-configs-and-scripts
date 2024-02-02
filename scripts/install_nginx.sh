@@ -2,8 +2,10 @@
 
 # Install nginx
 
-wget -O- https://nginx.org/keys/nginx_signing.key | sudo gpg --dearmor >/usr/share/keyrings/nginx-archive-keyring.gpg &&
-	echo deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu $(lsb_release -cs) nginx | sudo tee /etc/apt/sources.list.d/nginx-stable.list &&
+sudo apt-get install -qy ca-certificates curl gnupg2 lsb-release ubuntu-keyring &&
+	curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg &&
+	gpg --dry-run --quiet --no-keyring --import --import-options import-show /usr/share/keyrings/nginx-archive-keyring.gpg &&
+	echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list &&
 	sudo apt-get update &&
 	sudo apt-get install -qy nginx &&
 
