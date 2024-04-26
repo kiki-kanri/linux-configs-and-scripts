@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Install nodejs 21
+# Install nodejs 22
 
 sudo apt-get update &&
-	curl -fsSL https://deb.nodesource.com/setup_21.x | sudo -E bash - &&
+	curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - &&
 	sudo apt-get update &&
 	sudo apt-get install -qy nodejs &&
 	sudo npm i npm@latest -g &&
