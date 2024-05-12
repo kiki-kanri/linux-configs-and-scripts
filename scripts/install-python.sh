@@ -13,4 +13,5 @@ sudo add-apt-repository ppa:deadsnakes/ppa -y &&
 	sudo python3.12 -m pip install --upgrade --no-cache-dir pip setuptools wheel &&
 	sudo python3.12 -m pip cache purge &&
 	sudo python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel &&
-	sudo python3 -m pip cache purge
+	sudo python3 -m pip cache purge &&
+	sudo apt-get reinstall python3-requests python3-urllib3
