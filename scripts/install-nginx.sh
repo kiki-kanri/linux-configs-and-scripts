@@ -2,6 +2,7 @@
 
 # Install nginx
 
+cd $(dirname "$(readlink -f "$0")")
 sudo apt-get install -qy ca-certificates curl gnupg2 lsb-release ubuntu-keyring &&
 	curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg &&
 	gpg --dry-run --quiet --no-keyring --import --import-options import-show /usr/share/keyrings/nginx-archive-keyring.gpg &&
