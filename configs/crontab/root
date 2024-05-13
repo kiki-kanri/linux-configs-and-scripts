@@ -6,4 +6,4 @@
 
 # Upgrade node package managers
 0 3 */3 * * npm i npm@latest -g > /dev/null
-0 3 */3 * * npm upgrade -g > /dev/null
+0 3 */3 * * npm upgrade -g && corepack disable pnpm && npm i pnpm@latest -g > /dev/null
