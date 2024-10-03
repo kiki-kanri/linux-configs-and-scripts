@@ -1,6 +1,7 @@
 #!/bin/bash
 
 NGINX_VERSION='1.26.2'
+SCRIPTS_DIR="$(dirname "$(readlink -f "$0")")"
 
 # Clone brotli module
 cd /tmp &&
@@ -85,4 +86,15 @@ cd /tmp &&
 	sudo apt-get remove --auto-remove --purge -qy libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev &&
 	sudo apt-get install -qy geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 &&
 	cd /tmp &&
-	rm -rf nginx-$NGINX_VERSION ngx_brotli zstd-nginx-module
+	rm -rf nginx-$NGINX_VERSION ngx_brotli zstd-nginx-module &&
+
+	# Configure nginx
+	sudo mkdir -p /etc/nginx/certs &&
+	sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096 &&
+	sudo rm -rf /etc/nginx/nginx.conf &&
+	cd $SCRIPTS_DIR &&
+	sudo cp -r ../configs/nginx /etc/ &&
+	sudo cp ../configs/services/nginx.service /etc/systemd/system/ &&
+	sudo systemctl daemon-reload &&
+	sudo systemctl enable nginx &&
+	sudo systemctl restart nginx
