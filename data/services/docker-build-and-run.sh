@@ -1,6 +1,8 @@
 #!/bin/bash
 
-if [ "$1" = "-p" ]; then
+cd "$(dirname "$(readlink -f "$0")")"
+
+if [ "$1" = '-p' ]; then
 	docker compose pull
 fi
 

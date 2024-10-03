@@ -1,0 +1,101 @@
+name: services
+
+x-base-mongodb-options: &base-mongodb-options
+  image: mongodb/mongodb-community-server:latest
+  restart: always
+  user: root:nogroup
+
+services:
+  # KeyDB
+  keydb-main:
+    container_name: keydb-main
+    image: eqalpha/keydb:alpine
+    ports:
+      - 0.0.0.0:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379
+    restart: always
+    volumes:
+      - keydb-main-data:/data
+
+  # MongoDB data servers
+  mongodb-main-data-1:
+    <<: *base-mongodb-options
+    container_name: mongodb-main-data-1
+    entrypoint: >
+      bash -c "
+        mongod --bind_ip 0.0.0.0 --port 27017 --replSet rs0 &
+        until mongosh --eval 'print(\"Waiting for MongoDB connection...\")' --quiet; do
+          sleep 3
+        done
+
+        echo 'Initializing replica set...'
+        mongosh --eval \"
+          try {
+            rs.status();
+          } catch (error) {
+            rs.initiate({
+              _id: 'rs0',
+              members: [
+                { _id: 0, host: '${HOST_ADDRESS}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}' },
+                { _id: 1, host: '${HOST_ADDRESS}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}' },
+                { _id: 2, host: '${HOST_ADDRESS}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}' }
+              ]
+            });
+          }
+        \" --port 27017 --quiet
+        echo 'Replica set initialized.'
+        tail -f /dev/null
+      "
+
+    ports:
+      - 0.0.0.0:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017
+    volumes:
+      - mongodb-main-data-1-config:/data/configdb
+      - ${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db
+
+  mongodb-main-data-2:
+    <<: *base-mongodb-options
+    command: --replSet rs0
+    container_name: mongodb-main-data-2
+    ports:
+      - 0.0.0.0:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017
+    volumes:
+      - mongodb-main-data-2-config:/data/configdb
+      - ${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db
+
+  mongodb-main-data-3:
+    <<: *base-mongodb-options
+    command: --replSet rs0
+    container_name: mongodb-main-data-3
+    ports:
+      - 0.0.0.0:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017
+    volumes:
+      - mongodb-main-data-3-config:/data/configdb
+      - ${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:alpine-sts
+    ports:
+      - 127.0.0.1:${PORTAINER_EXPOSE_PORT:-9000}:9000
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+
+  verdaccio:
+    container_name: verdaccio
+    image: verdaccio/verdaccio
+    ports:
+      - 0.0.0.0:${VERDACCIO_EXPOSE_PORT:-4873}:4873
+    restart: always
+    volumes:
+      - verdaccio-conf:/verdaccio/conf
+      - verdaccio-plugins:/verdaccio/plugins
+      - verdaccio-storage:/verdaccio/storage
+
+volumes:
+  mongodb-main-config:
+  portainer-data:
+  verdaccio-conf:
+  verdaccio-plugins:
+  verdaccio-storage:
