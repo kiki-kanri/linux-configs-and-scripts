@@ -10,11 +10,11 @@ elif [ "$os_type" = 'ubuntu' ]; then
 	to_install_packages='ca-certificates curl gnupg2 lsb-release ubuntu-keyring'
 fi
 
-sudo apt-get install -qy $to_install_packages &&
+sudo apt-get install -y $to_install_packages &&
 	curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null &&
 	echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] "http://nginx.org/packages/$os_type" $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list &&
 	sudo apt-get update &&
-	sudo apt-get install -qy nginx &&
+	sudo apt-get install -y nginx &&
 
 	# Configure nginx
 	sudo mkdir -p /etc/nginx/certs &&

@@ -20,7 +20,7 @@ cd /tmp &&
 	git submodule update --init --recursive &&
 
 	# Build nginx
-	sudo apt-get install -qy libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev &&
+	sudo apt-get install -y libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev &&
 	cd /tmp &&
 	rm -rf nginx-$NGINX_VERSION nginx-$NGINX_VERSION.tar.gz* &&
 	wget http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz &&
@@ -85,8 +85,8 @@ cd /tmp &&
 	make -j$(nproc) &&
 	sudo make install &&
 	sudo mkdir -p /var/cache/nginx /var/log/nginx &&
-	sudo apt-get remove --auto-remove --purge -qy libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev &&
-	sudo apt-get install -qy geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 &&
+	sudo apt-get remove -y --auto-remove --purge libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev &&
+	sudo apt-get install -y geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 &&
 	cd /tmp &&
 	rm -rf nginx-$NGINX_VERSION ngx_brotli zstd-nginx-module &&
 
