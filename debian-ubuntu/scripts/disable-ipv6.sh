@@ -5,4 +5,4 @@ cd $ROOT_DIR
 . ./scripts/common.sh
 
 cp ./etc/sysctl.d/disable-ipv6.conf /etc/sysctl.d/ &&
-	sudo sysctl -p
+	sudo sysctl --system
