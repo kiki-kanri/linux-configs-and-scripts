@@ -1,8 +1,0 @@
-# Clear docker build cache
-0 3 */3 * * docker builder prune -f > /dev/null
-
-# Clear journal log
-0 3 * * * journalctl --vacuum-time=3d > /dev/null
-
-# Upgrade node package managers
-0 3 */3 * * npm upgrade -g && corepack disable pnpm && npm i pnpm@latest -g > /dev/null

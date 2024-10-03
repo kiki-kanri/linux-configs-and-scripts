@@ -1,0 +1,3 @@
+#!/bin/bash
+
+npm upgrade -g && corepack disable pnpm && npm i pnpm@latest -g
