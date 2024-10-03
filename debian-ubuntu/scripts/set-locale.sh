@@ -3,7 +3,7 @@
 # Set locale and timezone to zh_TW.UTF-8 and Asia/Taipei
 
 ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
-cd $ROOT_DIR
+cd "$ROOT_DIR"
 . ./scripts/common.sh
 
 # Set timezone and locale

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
-cd $ROOT_DIR
+cd "$ROOT_DIR"
 . ./scripts/common.sh
 
 cd /etc/update-motd.d &&

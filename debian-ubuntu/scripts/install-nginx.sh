@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
-cd $ROOT_DIR
+cd "$ROOT_DIR"
 . ./scripts/common.sh
 
 if [ "$os_type" = 'debian' ]; then
@@ -20,7 +20,7 @@ sudo apt-get install -y $to_install_packages &&
 	sudo mkdir -p /etc/nginx/certs &&
 	sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096 &&
 	sudo rm -rf /etc/nginx/nginx.conf &&
-	cd $ROOT_DIR &&
+	cd "$ROOT_DIR" &&
 	sudo cp -r ./etc/nginx /etc/ &&
 	sudo systemctl enable nginx &&
 	sudo systemctl restart nginx
