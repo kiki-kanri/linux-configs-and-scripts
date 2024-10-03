@@ -1,11 +1,8 @@
 #!/bin/bash
 
-# Disable ipv6
+ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
+cd $ROOT_DIR
+. ./scripts/common.sh
 
-echo "
-# Disable ipv6
-net.ipv6.conf.all.disable_ipv6=1
-net.ipv6.conf.default.disable_ipv6=1
-net.ipv6.conf.lo.disable_ipv6=1
-" | sudo tee /etc/sysctl.d/disable-ipv6.conf
-sudo sysctl -p
+cp ./etc/sysctl.d/disable-ipv6.conf /etc/sysctl.d/ &&
+	sudo sysctl -p

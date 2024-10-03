@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Install python 3.12
+ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
+cd $ROOT_DIR
+. ./scripts/common.sh
 
 sudo add-apt-repository ppa:deadsnakes/ppa -y &&
 	sudo apt-get update &&

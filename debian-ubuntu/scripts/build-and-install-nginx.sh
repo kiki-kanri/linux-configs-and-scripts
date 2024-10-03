@@ -1,7 +1,9 @@
 #!/bin/bash
 
 NGINX_VERSION='1.26.2'
-SCRIPTS_DIR="$(dirname "$(readlink -f "$0")")"
+ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
+cd $ROOT_DIR
+. ./scripts/common.sh
 
 # Clone brotli module
 cd /tmp &&
@@ -9,9 +11,9 @@ cd /tmp &&
 	git clone https://github.com/google/ngx_brotli.git &&
 	cd ngx_brotli &&
 	git submodule update --init --recursive &&
-	cd /tmp &&
 
 	# Clone zstd module
+	cd /tmp &&
 	rm -rf zstd-nginx-module &&
 	git clone https://github.com/tokers/zstd-nginx-module &&
 	cd zstd-nginx-module &&
@@ -92,9 +94,9 @@ cd /tmp &&
 	sudo mkdir -p /etc/nginx/certs &&
 	sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096 &&
 	sudo rm -rf /etc/nginx/nginx.conf &&
-	cd $SCRIPTS_DIR &&
-	sudo cp -r ../configs/nginx /etc/ &&
-	sudo cp ../configs/services/nginx.service /etc/systemd/system/ &&
+	cd $ROOT_DIR &&
+	sudo cp -r ./etc/nginx /etc/ &&
+	sudo cp ./etc/systemd/system/nginx.service /etc/systemd/system/ &&
 	sudo systemctl daemon-reload &&
 	sudo systemctl enable nginx &&
 	sudo systemctl restart nginx
