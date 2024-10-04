@@ -1,15 +1,14 @@
 #!/bin/bash
 
-echo "Here is your cat."
-echo
+echo -e 'Here is your cat.\n'
 echo "            A____A    "
 echo "           /*    *\   "
 echo "          {   _  _ }  "
-echo "          A\` >  v /<  "
+echo "          A\` >  v /< "
 echo "        / !!!!! !!}   "
 echo "       / ! \!!!!! |   "
 echo "  ____{   ) |  |  |   "
 echo " / ___{ !!c |  |  |   "
 echo "{ (___ \__\__@@_)@_)  "
 echo " \____)               "
-echo "paradise is no longer paradise if there is no cat."
+echo 'paradise is no longer paradise if there is no cat.'
