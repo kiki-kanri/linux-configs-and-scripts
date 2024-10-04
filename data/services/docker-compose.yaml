@@ -16,6 +16,19 @@ services:
     volumes:
       - keydb-main-data:/data
 
+  # MariaDB
+  mariadb-main:
+    container_name: mariadb-main
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
+      TZ: ${MARIADB_MAIN_TZ}
+    image: mariadb:latest
+    ports:
+      - 0.0.0.0:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306
+    restart: always
+    volumes:
+      - ${MARIADB_MAIN_FILES_PATH}:/var/lib/mysql
+
   # MongoDB data servers
   mongodb-main-data-1:
     <<: *base-mongodb-options
@@ -72,6 +85,18 @@ services:
       - mongodb-main-data-3-config:/data/configdb
       - ${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db
 
+  # phpMyAdmin
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
+      PMA_HOST: mariadb-main
+    ports:
+      - 0.0.0.0:${PHPMYADMIN_EXPOSE_PORT:-9001}:80
+    restart: always
+
+  # Portainer
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:alpine-sts
@@ -82,6 +107,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer-data:/data
 
+  # Verdaccio
   verdaccio:
     container_name: verdaccio
     image: verdaccio/verdaccio
@@ -94,7 +120,10 @@ services:
       - verdaccio-storage:/verdaccio/storage
 
 volumes:
-  mongodb-main-config:
+  keydb-main-data:
+  mongodb-main-data-1-config:
+  mongodb-main-data-2-config:
+  mongodb-main-data-3-config:
   portainer-data:
   verdaccio-conf:
   verdaccio-plugins:
