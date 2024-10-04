@@ -4,7 +4,7 @@ server {
 	include public/ssls/example.conf;
 
 	# Server name
-	server_name server name;
+	server_name server_name;
 
 	# Locations
 	location / {
