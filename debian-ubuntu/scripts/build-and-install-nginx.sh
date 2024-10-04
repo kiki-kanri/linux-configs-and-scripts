@@ -25,6 +25,7 @@ cd /tmp &&
 	git submodule update --init --recursive &&
 
 	# Build nginx
+	sudo apt-get update &&
 	sudo apt-get install -y $DEVELOP_PACKAGES &&
 	cd /tmp &&
 	rm -rf nginx-$NGINX_VERSION nginx-$NGINX_VERSION.tar.gz* &&
