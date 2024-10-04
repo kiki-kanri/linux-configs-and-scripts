@@ -88,8 +88,8 @@ cd /tmp &&
 		--with-stream_ssl_module \
 		--with-stream_ssl_preread_module \
 		--with-threads &&
-	make -j$(nproc) &&
-	sudo make install &&
+	colormake -j$(nproc) &&
+	sudo colormake install &&
 	sudo mkdir -p /var/cache/nginx /var/log/nginx &&
 	sudo apt-get remove -y --auto-remove --purge $DEVELOP_PACKAGES &&
 	sudo apt-get install -y $RUNTIME_PACKAGES &&
