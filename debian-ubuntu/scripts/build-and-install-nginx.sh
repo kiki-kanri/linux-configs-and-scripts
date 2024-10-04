@@ -43,9 +43,9 @@ cd /tmp &&
 		--http-proxy-temp-path=/var/cache/nginx/proxy_temp \
 		--http-scgi-temp-path=/var/cache/nginx/scgi_temp \
 		--http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-		--lock-path=/var/run/nginx.lock \
+		--lock-path=/run/nginx.lock \
 		--modules-path=/usr/lib/nginx/modules \
-		--pid-path=/var/run/nginx.pid \
+		--pid-path=/run/nginx.pid \
 		--prefix=/etc/nginx \
 		--sbin-path=/usr/sbin/nginx \
 		--user=nginx \
@@ -96,7 +96,7 @@ cd /tmp &&
 	rm -rf nginx-$NGINX_VERSION ngx_brotli zstd-nginx-module &&
 
 	# Configure nginx
-	id -u nginx &>/dev/null || sudo useradd -r -s /sbin/nologin nginx &&
+	(id -u nginx || sudo useradd -r -s /sbin/nologin nginx) &&
 	sudo mkdir -p /etc/nginx/certs &&
 	sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096 &&
 	sudo rm -rf /etc/nginx/nginx.conf &&
