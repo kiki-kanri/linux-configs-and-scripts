@@ -5,33 +5,35 @@ cd "$ROOT_DIR"
 . ./scripts/common.sh
 
 CC_OPT_FLAG='-ffat-lto-objects -flto=4 -fPIC -fstack-protector-strong -g -march=native -O3 -pthread -Werror=format-security -Wformat'
-DEVELOP_PACKAGES='libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev zlib1g-dev'
+DEVELOP_PACKAGES='colormake g++ gcc libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev zlib1g-dev'
 NGINX_VERSION='1.26.2'
 RUNTIME_PACKAGES='geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 zlib1g'
 [ "$os_type" = 'debian' ] && CC_OPT_FLAG+=' -Wp,-D_FORTIFY_SOURCE=2'
 
-# Clone brotli module
-cd /tmp &&
-	rm -rf ngx_brotli &&
+# Install packages
+sudo apt-get update &&
+	sudo apt-get install -y --no-install-recommends $DEVELOP_PACKAGES git &&
+
+	#  Clone brotli module
+	cd /tmp &&
+	rm -fr ./ngx_brotli &&
 	git clone https://github.com/google/ngx_brotli.git &&
-	cd ngx_brotli &&
+	cd ./ngx_brotli &&
 	git submodule update --init --recursive &&
 
 	# Clone zstd module
 	cd /tmp &&
-	rm -rf zstd-nginx-module &&
+	rm -fr ./zstd-nginx-module &&
 	git clone https://github.com/tokers/zstd-nginx-module &&
-	cd zstd-nginx-module &&
+	cd ./zstd-nginx-module &&
 	git submodule update --init --recursive &&
 
-	# Build nginx
-	sudo apt-get update &&
-	sudo apt-get install -y $DEVELOP_PACKAGES &&
+	# Build and install nginx
 	cd /tmp &&
-	rm -rf nginx-$NGINX_VERSION nginx-$NGINX_VERSION.tar.gz* &&
+	rm -fr ./nginx-$NGINX_VERSION ./nginx-$NGINX_VERSION.tar.gz* &&
 	wget http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz &&
 	tar -zxvf nginx-$NGINX_VERSION.tar.gz &&
-	cd nginx-$NGINX_VERSION &&
+	cd ./nginx-$NGINX_VERSION &&
 	./configure \
 		--add-module=../ngx_brotli \
 		--add-module=../zstd-nginx-module \
@@ -90,20 +92,18 @@ cd /tmp &&
 		--with-threads &&
 	colormake -j$(nproc) &&
 	sudo colormake install &&
-	sudo mkdir -p /var/cache/nginx /var/log/nginx &&
 	sudo apt-get remove -y --auto-remove --purge $DEVELOP_PACKAGES &&
 	sudo apt-get install -y $RUNTIME_PACKAGES &&
 	cd /tmp &&
-	rm -rf nginx-$NGINX_VERSION ngx_brotli zstd-nginx-module &&
+	rm -fr ./nginx-$NGINX_VERSION ./nginx-$NGINX_VERSION.tar.gz* ./ngx_brotli ./zstd-nginx-module &&
 
 	# Configure nginx
 	(id -u nginx || sudo useradd -r -s /sbin/nologin nginx) &&
-	sudo mkdir -p /etc/nginx/certs &&
+	sudo mkdir -p /var/cache/nginx /var/log/nginx /etc/nginx/certs &&
 	sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096 &&
-	sudo rm -rf /etc/nginx/nginx.conf &&
-	cd "$ROOT_DIR" &&
-	sudo cp -r ./etc/nginx /etc/ &&
-	sudo cp ./etc/systemd/system/nginx.service /etc/systemd/system/ &&
+	sudo cp -frp "$ROOT_DIR/etc/nginx" /etc/ &&
+	sudo cp -fp "$ROOT_DIR/etc/systemd/system/nginx.service" /etc/systemd/system/ &&
 	sudo systemctl daemon-reload &&
 	sudo systemctl enable nginx &&
-	sudo systemctl restart nginx
+	sudo systemctl restart nginx &&
+	sudo cp -fp "$SETUP_FILES_DIR/scripts/generate-nginx-dhparam.pem.sh" /etc/cron.monthly/generate-nginx-dhparam.pem
