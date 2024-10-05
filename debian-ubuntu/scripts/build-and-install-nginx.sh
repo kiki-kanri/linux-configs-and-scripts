@@ -106,4 +106,4 @@ sudo apt-get update &&
 	sudo systemctl daemon-reload &&
 	sudo systemctl enable nginx &&
 	sudo systemctl restart nginx &&
-	sudo cp -fp "$SETUP_FILES_DIR/scripts/generate-nginx-dhparam.pem.sh" /etc/cron.monthly/generate-nginx-dhparam.pem
+	sudo cp -fp "$ROOT_DIR/scripts/generate-nginx-dhparam.pem.sh" /etc/cron.monthly/generate-nginx-dhparam.pem
