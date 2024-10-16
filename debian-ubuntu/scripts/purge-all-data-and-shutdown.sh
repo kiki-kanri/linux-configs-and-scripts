@@ -21,6 +21,7 @@ find / -name '*.old' -exec rm -rf {} +
 find / -name '__pycache__' -prune -exec rm -rf {} +
 find / -name '*.py[co]' -exec rm -rf {} +
 npm cache clean --force
+npm cache clean -g --force
 python3 -m pip cache purge
 rm -rf \
 	/root/.bash_history \
