@@ -1,1 +1,2 @@
 .env
+libforce_enable_thp.so

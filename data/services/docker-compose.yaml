@@ -1,6 +1,8 @@
 name: services
 
 x-base-mongodb-options: &base-mongodb-options
+  environment:
+    GLIBC_TUNABLES: glibc.pthread.rseq=0
   image: mongodb/mongodb-community-server:latest
   restart: always
   user: root:nogroup
@@ -35,7 +37,7 @@ services:
     container_name: mongodb-main-data-1
     entrypoint: >
       bash -c "
-        mongod --bind_ip 0.0.0.0 --port 27017 --replSet rs0 &
+        LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0 &
         until mongosh --eval 'print(\"Waiting for MongoDB connection...\")' --quiet; do
           sleep 3
         done
@@ -62,28 +64,31 @@ services:
     ports:
       - 0.0.0.0:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017
     volumes:
-      - mongodb-main-data-1-config:/data/configdb
       - ${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db
+      - ./libforce_enable_thp.so:/libforce_enable_thp.so
+      - mongodb-main-data-1-config:/data/configdb
 
   mongodb-main-data-2:
     <<: *base-mongodb-options
-    command: --replSet rs0
     container_name: mongodb-main-data-2
+    entrypoint: "bash -c 'LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0'"
     ports:
       - 0.0.0.0:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017
     volumes:
-      - mongodb-main-data-2-config:/data/configdb
       - ${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db
+      - ./libforce_enable_thp.so:/libforce_enable_thp.so
+      - mongodb-main-data-2-config:/data/configdb
 
   mongodb-main-data-3:
     <<: *base-mongodb-options
-    command: --replSet rs0
     container_name: mongodb-main-data-3
+    entrypoint: "bash -c 'LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0'"
     ports:
       - 0.0.0.0:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017
     volumes:
-      - mongodb-main-data-3-config:/data/configdb
       - ${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db
+      - ./libforce_enable_thp.so:/libforce_enable_thp.so
+      - mongodb-main-data-3-config:/data/configdb
 
   # phpMyAdmin
   phpmyadmin:
