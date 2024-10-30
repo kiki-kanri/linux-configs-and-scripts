@@ -1,0 +1,12 @@
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "echo madvise > /sys/kernel/mm/transparent_hugepage/enabled"
+ExecStart=/bin/sh -c "echo defer+madvise > /sys/kernel/mm/transparent_hugepage/defrag"
+ExecStart=/bin/sh -c "echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none"
+ExecStart=/bin/sh -c "echo 1 > /proc/sys/vm/overcommit_memory"
+
+[Unit]
+Description=Setup Transparent Huge Pages (THP)
