@@ -4,7 +4,26 @@ ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
 cd "$ROOT_DIR"
 . ./scripts/common.sh
 
-CC_OPT_FLAG='-ffat-lto-objects -flto=4 -fPIC -fstack-protector-strong -g -march=native -O3 -pthread -Werror=format-security -Wformat'
+CC_OPT_FLAG=(
+	-ffat-lto-objects
+	-fipa-pta
+	-floop-block
+	-floop-interchange
+	-floop-strip-mine
+	-flto=4
+	-fomit-frame-pointer
+	-fPIC
+	-fstack-protector-strong
+	-funroll-loops
+	-g
+	-march=native
+	-O3
+	-pthread
+	-Werror=format-security
+	-Wformat
+)
+
+CC_OPT_FLAG="${CC_OPT_FLAG[*]}"
 DEVELOP_PACKAGES='colormake g++ gcc libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev zlib1g-dev'
 NGINX_VERSION='1.26.2'
 RUNTIME_PACKAGES='geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 zlib1g'
