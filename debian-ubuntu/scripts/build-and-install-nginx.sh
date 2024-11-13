@@ -4,8 +4,7 @@ ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
 cd "$ROOT_DIR"
 . ./scripts/common.sh
 
-CC_OPT_FLAG=(
-	-ffat-lto-objects
+CC_OPT_FLAGS=(
 	-fipa-pta
 	-flto=4
 	-fomit-frame-pointer
@@ -19,11 +18,24 @@ CC_OPT_FLAG=(
 	-Wformat
 )
 
-CC_OPT_FLAG="${CC_OPT_FLAG[*]}"
+CC_OPT_FLAGS="${CC_OPT_FLAGS[*]}"
 DEVELOP_PACKAGES='colormake g++ gcc libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev zlib1g-dev'
+LD_OPT_FLAGS=(
+	-flto=4
+	-lpthread
+	-pie
+	-Wl,--as-needed
+	-Wl,-Bsymbolic-functions
+	-Wl,--gc-sections
+	-Wl,-O2
+	-Wl,-z,now
+	-Wl,-z,relro
+)
+
+LD_OPT_FLAGS="${LD_OPT_FLAGS[*]}"
 NGINX_VERSION='1.26.2'
 RUNTIME_PACKAGES='geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 zlib1g'
-[ "$os_type" = 'debian' ] && CC_OPT_FLAG+=' -Wp,-D_FORTIFY_SOURCE=2'
+[ "$os_type" = 'debian' ] && CC_OPT_FLAGS+=' -Wp,-D_FORTIFY_SOURCE=2'
 
 # Install packages
 sudo apt-get update &&
@@ -67,7 +79,7 @@ sudo apt-get update &&
 		--prefix=/etc/nginx \
 		--sbin-path=/usr/sbin/nginx \
 		--user=nginx \
-		--with-cc-opt="$CC_OPT_FLAG" \
+		--with-cc-opt="$CC_OPT_FLAGS" \
 		--with-compat \
 		--with-file-aio \
 		--with-http_addition_module \
@@ -91,7 +103,7 @@ sudo apt-get update &&
 		--with-http_sub_module \
 		--with-http_v2_module \
 		--with-http_v3_module \
-		--with-ld-opt='-ffat-lto-objects -flto=4 -pie -pthread -Wl,--as-needed -Wl,-Bsymbolic-functions -Wl,-z,now -Wl,-z,relro' \
+		--with-ld-opt="$LD_OPT_FLAGS" \
 		--with-mail \
 		--with-mail_ssl_module \
 		--without-poll_module \
