@@ -7,14 +7,10 @@ cd "$ROOT_DIR"
 CC_OPT_FLAG=(
 	-ffat-lto-objects
 	-fipa-pta
-	-floop-block
-	-floop-interchange
-	-floop-strip-mine
 	-flto=4
 	-fomit-frame-pointer
 	-fPIC
 	-fstack-protector-strong
-	-funroll-loops
 	-g
 	-march=native
 	-O3
