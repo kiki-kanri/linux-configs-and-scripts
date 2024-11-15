@@ -9,7 +9,9 @@ CC_OPT_FLAGS=(
 	-flto=4
 	-fomit-frame-pointer
 	-fPIC
+	-fstack-clash-protection
 	-fstack-protector-strong
+	-fstrict-aliasing
 	-g
 	-march=native
 	-O3
@@ -22,6 +24,7 @@ CC_OPT_FLAGS="${CC_OPT_FLAGS[*]}"
 DEVELOP_PACKAGES='colormake g++ gcc libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev zlib1g-dev'
 LD_OPT_FLAGS=(
 	-flto=4
+	-fuse-linker-plugin
 	-lpthread
 	-pie
 	-Wl,--as-needed
