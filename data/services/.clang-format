@@ -1,0 +1,7 @@
+AllowShortIfStatementsOnASingleLine: true
+BasedOnStyle: LLVM
+ColumnLimit: 256
+IndentWidth: 4
+NamespaceIndentation: All
+TabWidth: 4
+UseTab: Never
