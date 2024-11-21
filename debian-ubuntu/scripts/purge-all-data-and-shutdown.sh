@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [[ "$PPID" != '1' && "$0" != '-bash' ]]; then
-	nohup bash $0 "$@" >/dev/null 2>&1 &
-	exit 0
+    nohup bash $0 "$@" >/dev/null 2>&1 &
+    exit 0
 fi
 
 # 清除未使用內核、套件、快取與檔案
@@ -24,32 +24,32 @@ npm cache clean --force
 npm cache clean -g --force
 python3 -m pip cache purge
 rm -rf \
-	/root/.bash_history \
-	/root/.bash_logout \
-	/root/.cache/ \
-	/root/.config/ \
-	/root/.cshrc \
-	/root/.docker/ \
-	/root/.dotnet/ \
-	/root/.lesshst \
-	/root/.local/ \
-	/root/.node_repl_history \
-	/root/.npm \
-	/root/.phpls/ \
-	/root/.pip/ \
-	/root/.pki/ \
-	/root/.python_history \
-	/root/.redhat/ \
-	/root/.selected_editor \
-	/root/.ssh/known_hosts* \
-	/root/.tcshrc \
-	/root/.viminfo \
-	/root/.vscode-server/ \
-	/root/.wget-hsts \
-	/tmp/* \
-	/var/cache/apt/* \
-	/var/lib/apt/lists/* \
-	/var/tmp/*
+    /root/.bash_history \
+    /root/.bash_logout \
+    /root/.cache/ \
+    /root/.config/ \
+    /root/.cshrc \
+    /root/.docker/ \
+    /root/.dotnet/ \
+    /root/.lesshst \
+    /root/.local/ \
+    /root/.node_repl_history \
+    /root/.npm \
+    /root/.phpls/ \
+    /root/.pip/ \
+    /root/.pki/ \
+    /root/.python_history \
+    /root/.redhat/ \
+    /root/.selected_editor \
+    /root/.ssh/known_hosts* \
+    /root/.tcshrc \
+    /root/.viminfo \
+    /root/.vscode-server/ \
+    /root/.wget-hsts \
+    /tmp/* \
+    /var/cache/apt/* \
+    /var/lib/apt/lists/* \
+    /var/tmp/*
 
 # 清除日誌
 find /var/log/ -name '*.gz' -type f -exec rm -f {} +
