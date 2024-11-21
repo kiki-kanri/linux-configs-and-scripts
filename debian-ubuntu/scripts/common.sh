@@ -11,6 +11,8 @@ if [ -f /etc/os-release ]; then
 		echo "Unsupported OS: $ID. Exiting script."
 		exit 1
 	fi
+
+	export os_version_id=$VERSION_ID
 else
 	echo '/etc/os-release file not found. Exiting script.'
 	exit 1
