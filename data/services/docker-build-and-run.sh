@@ -1,8 +1,9 @@
 #!/bin/bash
 
+set -e
 cd "$(dirname "$(readlink -f "$0")")"
 
-if [ "$1" = '-p' ]; then
+if [[ "$*" == *'-p'* ]]; then
     docker compose pull
 fi
 
@@ -20,5 +21,7 @@ gcc \
     -Wl,--as-needed \
     -Wl,-O2 \
     -Wl,-z,now \
-    -Wl,-z,relro &&
-    docker compose build && docker compose up -d --remove-orphans
+    -Wl,-z,relro
+
+docker compose build
+docker compose up -d --remove-orphans
