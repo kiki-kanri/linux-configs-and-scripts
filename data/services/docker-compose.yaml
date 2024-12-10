@@ -29,7 +29,7 @@ services:
       KEYDB_MAIN_PASSWORD: ${KEYDB_MAIN_PASSWORD}
     image: eqalpha/keydb:alpine
     ports:
-      - 0.0.0.0:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379
+      - "0.0.0.0:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379"
     restart: always
     volumes:
       - keydb-main-data:/data
@@ -42,7 +42,7 @@ services:
       TZ: ${MARIADB_MAIN_TZ}
     image: mariadb:latest
     ports:
-      - 0.0.0.0:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306
+      - "0.0.0.0:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306"
     restart: always
     volumes:
       - ${MARIADB_MAIN_FILES_PATH}:/var/lib/mysql
@@ -78,7 +78,7 @@ services:
       "
 
     ports:
-      - 0.0.0.0:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017
+      - "0.0.0.0:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017"
     volumes:
       - ${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db
       - ./libforce_enable_thp.so:/libforce_enable_thp.so
@@ -89,7 +89,7 @@ services:
     container_name: mongodb-main-data-2
     entrypoint: "bash -c 'LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0'"
     ports:
-      - 0.0.0.0:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017
+      - "0.0.0.0:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017"
     volumes:
       - ${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db
       - ./libforce_enable_thp.so:/libforce_enable_thp.so
@@ -100,7 +100,7 @@ services:
     container_name: mongodb-main-data-3
     entrypoint: "bash -c 'LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0'"
     ports:
-      - 0.0.0.0:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017
+      - "0.0.0.0:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017"
     volumes:
       - ${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db
       - ./libforce_enable_thp.so:/libforce_enable_thp.so
@@ -114,7 +114,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
       PMA_HOST: mariadb-main
     ports:
-      - 0.0.0.0:${PHPMYADMIN_EXPOSE_PORT:-9001}:80
+      - "0.0.0.0:${PHPMYADMIN_EXPOSE_PORT:-9001}:80"
     restart: always
 
   # Portainer
@@ -122,7 +122,7 @@ services:
     container_name: portainer
     image: portainer/portainer-ce:alpine-sts
     ports:
-      - 127.0.0.1:${PORTAINER_EXPOSE_PORT:-9000}:9000
+      - "127.0.0.1:${PORTAINER_EXPOSE_PORT:-9000}:9000"
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -133,7 +133,7 @@ services:
     container_name: verdaccio
     image: verdaccio/verdaccio
     ports:
-      - 0.0.0.0:${VERDACCIO_EXPOSE_PORT:-4873}:4873
+      - "0.0.0.0:${VERDACCIO_EXPOSE_PORT:-4873}:4873"
     restart: always
     volumes:
       - verdaccio-conf:/verdaccio/conf
