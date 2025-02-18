@@ -37,7 +37,7 @@ LD_OPT_FLAGS=(
 )
 
 LD_OPT_FLAGS="${LD_OPT_FLAGS[*]}"
-NGINX_VERSION='1.26.2'
+NGINX_VERSION='1.26.3'
 RUNTIME_PACKAGES='geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 zlib1g'
 [ "$os_type" = 'debian' ] && CC_OPT_FLAGS+=' -Wp,-D_FORTIFY_SOURCE=2'
 
