@@ -3,5 +3,9 @@
 set -e
 npm upgrade -g
 corepack disable pnpm
-npm i bun@latest npm@latest pnpm@latest -g
+npm i -g \
+    bun@latest \
+    npm@latest \
+    pnpm@latest
+
 npm cache clean -g --force
