@@ -15,8 +15,8 @@ gcc \
     -shared \
     -Werror=format-security \
     -Wformat \
-    -o ./libforce_enable_thp.so \
-    ./force_enable_thp.c \
+    -o ./mongodb/libforce_enable_thp.so \
+    ./mongodb/force_enable_thp.c \
     -ldl \
     -Wl,--as-needed \
     -Wl,-O2 \

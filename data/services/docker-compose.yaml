@@ -1,8 +1,10 @@
 name: services
 
 x-base-mongodb-options: &base-mongodb-options
+  entrypoint: /opt/mongodb/entrypoint.sh
   environment:
     GLIBC_TUNABLES: glibc.pthread.rseq=0
+    MONGODB_MAIN_RS_HOST: $MONGODB_MAIN_RS_HOST
   image: mongodb/mongodb-community-server:8.0-ubuntu2204
   restart: always
   user: root:nogroup
@@ -15,26 +17,26 @@ services:
   # KeyDB
   keydb-main:
     container_name: keydb-main
-    entrypoint: /custom-entrypoint.sh
+    entrypoint: /opt/keydb/entrypoint.sh
     image: eqalpha/keydb:alpine
     ports:
-      - '0.0.0.0:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379'
+      - '${KEYDB_MAIN_EXPOSE_HOST}:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379'
     restart: always
     secrets:
       - KEYDB_MAIN_PASSWORD
     volumes:
-      - ./keydb/entrypoint.sh:/custom-entrypoint.sh
+      - ./keydb:/opt/keydb
       - keydb-main-data:/data
 
   # MariaDB
   mariadb-main:
     container_name: mariadb-main
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
-      TZ: ${MARIADB_MAIN_TZ}
+      MARIADB_ROOT_PASSWORD: $MARIADB_MAIN_ROOT_PASSWORD
+      TZ: $MARIADB_MAIN_TZ
     image: mariadb:latest
     ports:
-      - '0.0.0.0:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306'
+      - '${MARIADB_MAIN_EXPOSE_HOST}:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306'
     restart: always
     volumes:
       - '${MARIADB_MAIN_FILES_PATH}:/var/lib/mysql'
@@ -43,60 +45,32 @@ services:
   mongodb-main-data-1:
     <<: *base-mongodb-options
     container_name: mongodb-main-data-1
-    entrypoint: >
-      bash -c "
-        LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0 &
-        until mongosh --eval 'print(\"Waiting for MongoDB connection...\")' --quiet; do
-          sleep 3
-        done
-
-        echo 'Initializing replica set...'
-        mongosh --eval \"
-          try {
-            rs.status();
-          } catch (error) {
-            rs.initiate({
-              _id: 'rs0',
-              members: [
-                { _id: 0, host: '${HOST_ADDRESS}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}' },
-                { _id: 1, host: '${HOST_ADDRESS}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}' },
-                { _id: 2, host: '${HOST_ADDRESS}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}' }
-              ]
-            });
-          }
-        \" --port 27017 --quiet
-        echo 'Replica set initialized.'
-        tail -f /dev/null
-      "
-
     ports:
-      - '0.0.0.0:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017'
+      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017'
     volumes:
       - '${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db'
-      - './libforce_enable_thp.so:/libforce_enable_thp.so'
-      - 'mongodb-main-data-1-config:/data/configdb'
+      - ./mongodb:/opt/mongodb
+      - mongodb-main-data-1-config:/data/configdb
 
   mongodb-main-data-2:
     <<: *base-mongodb-options
     container_name: mongodb-main-data-2
-    entrypoint: "bash -c 'LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0'"
     ports:
-      - '0.0.0.0:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017'
+      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017'
     volumes:
       - '${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db'
-      - './libforce_enable_thp.so:/libforce_enable_thp.so'
-      - 'mongodb-main-data-2-config:/data/configdb'
+      - ./mongodb:/opt/mongodb
+      - mongodb-main-data-2-config:/data/configdb
 
   mongodb-main-data-3:
     <<: *base-mongodb-options
     container_name: mongodb-main-data-3
-    entrypoint: "bash -c 'LD_PRELOAD=/libforce_enable_thp.so python3 /usr/local/bin/docker-entrypoint.py --replSet rs0'"
     ports:
-      - '0.0.0.0:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017'
+      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017'
     volumes:
       - '${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db'
-      - './libforce_enable_thp.so:/libforce_enable_thp.so'
-      - 'mongodb-main-data-3-config:/data/configdb'
+      - ./mongodb:/opt/mongodb
+      - mongodb-main-data-3-config:/data/configdb
 
   # phpMyAdmin
   phpmyadmin:
@@ -106,7 +80,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
       PMA_HOST: mariadb-main
     ports:
-      - '0.0.0.0:${PHPMYADMIN_EXPOSE_PORT:-9001}:80'
+      - '${PHPMYADMIN_EXPOSE_HOST}:${PHPMYADMIN_EXPOSE_PORT:-9001}:80'
     restart: always
 
   # Portainer
@@ -114,7 +88,7 @@ services:
     container_name: portainer
     image: portainer/portainer-ce:alpine-sts
     ports:
-      - '127.0.0.1:${PORTAINER_EXPOSE_PORT:-9000}:9000'
+      - '${PORTAINER_EXPOSE_HOST}:${PORTAINER_EXPOSE_PORT:-9000}:9000'
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -125,7 +99,7 @@ services:
     container_name: verdaccio
     image: verdaccio/verdaccio
     ports:
-      - '0.0.0.0:${VERDACCIO_EXPOSE_PORT:-4873}:4873'
+      - '${VERDACCIO_EXPOSE_HOST}:${VERDACCIO_EXPOSE_PORT:-4873}:4873'
     restart: always
     volumes:
       - verdaccio-conf:/verdaccio/conf
