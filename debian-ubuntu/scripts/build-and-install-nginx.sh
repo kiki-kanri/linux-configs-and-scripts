@@ -37,7 +37,7 @@ LD_OPT_FLAGS=(
 )
 
 LD_OPT_FLAGS="${LD_OPT_FLAGS[*]}"
-NGINX_VERSION='1.26.3'
+NGINX_VERSION='1.28.0'
 RUNTIME_PACKAGES='geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 zlib1g'
 [ "$os_type" = 'debian' ] && CC_OPT_FLAGS+=' -Wp,-D_FORTIFY_SOURCE=2'
 
@@ -85,12 +85,10 @@ cd "./nginx-$NGINX_VERSION"
     --with-http_dav_module \
     --with-http_degradation_module \
     --with-http_flv_module \
-    --with-http_geoip_module \
     --with-http_geoip_module=dynamic \
     --with-http_gunzip_module \
     --with-http_gzip_static_module \
     --with-http_mp4_module \
-    --with-http_perl_module \
     --with-http_perl_module=dynamic \
     --with-http_random_index_module \
     --with-http_realip_module \
