@@ -5,6 +5,27 @@ ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
 cd "$ROOT_DIR"
 . ./scripts/common.sh
 
+IS_UPGRADE='0'
+NGINX_VERSION='1.28.0'
+
+# Detect existing nginx install
+if [ -f /etc/nginx/nginx.conf ]; then
+    echo 'Detected existing Nginx installation.'
+    echo "If you continue, it will perform an upgrade to v$NGINX_VERSION."
+    echo 'All files and folders in /etc/nginx will be reset EXCEPT: certs, domains, public, and nginx.conf.'
+    echo -n 'Do you want to continue? (y/N) [n]: '
+    read -r user_input
+    user_input="${user_input,,}"
+    if [ "$user_input" != 'y' ]; then
+        echo 'Aborted by user.'
+        exit 1
+    fi
+
+    IS_UPGRADE='1'
+else
+    echo "Installing Nginx v$NGINX_VERSION..."
+fi
+
 CC_OPT_FLAGS=(
     -fipa-pta
     -flto=4
@@ -21,7 +42,6 @@ CC_OPT_FLAGS=(
     -Wformat
 )
 
-CC_OPT_FLAGS="${CC_OPT_FLAGS[*]}"
 DEVELOP_PACKAGES='colormake g++ gcc libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev zlib1g-dev'
 LD_OPT_FLAGS=(
     -flto=4
@@ -36,10 +56,8 @@ LD_OPT_FLAGS=(
     -Wl,-z,relro
 )
 
-LD_OPT_FLAGS="${LD_OPT_FLAGS[*]}"
-NGINX_VERSION='1.28.0'
 RUNTIME_PACKAGES='geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 zlib1g'
-[ "$os_type" = 'debian' ] && CC_OPT_FLAGS+=' -Wp,-D_FORTIFY_SOURCE=2'
+[ "$os_type" = 'debian' ] && CC_OPT_FLAGS+=(-Wp,-D_FORTIFY_SOURCE=2)
 
 # Install packages
 sudo apt-get update
@@ -53,6 +71,12 @@ git clone https://github.com/google/ngx_brotli.git --recurse-submodules
 # Clone zstd module
 rm -fr ./zstd-nginx-module
 git clone https://github.com/tokers/zstd-nginx-module --recurse-submodules
+
+# Copy old files if upgrading
+if [ "$IS_UPGRADE" = '1' ]; then
+    sudo rm -rf /tmp/nginx.old
+    sudo cp -frp /etc/nginx /tmp/nginx.old
+fi
 
 # Build and install nginx
 rm -fr "./nginx-$NGINX_VERSION" "./nginx-$NGINX_VERSION.tar.gz"*
@@ -77,7 +101,7 @@ cd "./nginx-$NGINX_VERSION"
     --prefix=/etc/nginx \
     --sbin-path=/usr/sbin/nginx \
     --user=nginx \
-    --with-cc-opt="$CC_OPT_FLAGS" \
+    --with-cc-opt="${CC_OPT_FLAGS[*]}" \
     --with-compat \
     --with-file-aio \
     --with-http_addition_module \
@@ -99,7 +123,7 @@ cd "./nginx-$NGINX_VERSION"
     --with-http_sub_module \
     --with-http_v2_module \
     --with-http_v3_module \
-    --with-ld-opt="$LD_OPT_FLAGS" \
+    --with-ld-opt="${LD_OPT_FLAGS[*]}" \
     --with-mail \
     --with-mail_ssl_module \
     --without-poll_module \
@@ -122,12 +146,23 @@ cd /tmp
 rm -fr "./nginx-$NGINX_VERSION" "./nginx-$NGINX_VERSION.tar.gz"* ./ngx_brotli ./zstd-nginx-module
 
 # Configure nginx
-id -u nginx || sudo useradd -r -s /sbin/nologin nginx
-sudo mkdir -p /var/cache/nginx /var/log/nginx /etc/nginx/certs
-sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096
-sudo cp -frp "$ROOT_DIR/etc/nginx" /etc/
-sudo cp -fp "$ROOT_DIR/etc/systemd/system/nginx.service" /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable nginx
+if [ "$IS_UPGRADE" = '1' ]; then
+    sudo cp -frp /tmp/nginx.old/certs \
+        /tmp/nginx.old/domains \
+        /tmp/nginx.old/public \
+        /tmp/nginx.old/nginx.conf \
+        /etc/nginx
+
+    sudo rm -rf /tmp/nginx.old
+else
+    id -u nginx || sudo useradd -r -s /sbin/nologin nginx
+    sudo mkdir -p /var/cache/nginx /var/log/nginx /etc/nginx/certs
+    sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096
+    sudo cp -frp "$ROOT_DIR/etc/nginx" /etc/
+    sudo cp -fp "$ROOT_DIR/etc/systemd/system/nginx.service" /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable nginx
+    sudo cp -fp "$ROOT_DIR/scripts/generate-nginx-dhparam.pem.sh" /etc/cron.monthly/generate-nginx-dhparam.pem
+fi
+
 sudo systemctl restart nginx
-sudo cp -fp "$ROOT_DIR/scripts/generate-nginx-dhparam.pem.sh" /etc/cron.monthly/generate-nginx-dhparam.pem
