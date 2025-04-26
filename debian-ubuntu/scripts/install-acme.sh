@@ -1,9 +1,12 @@
 #!/bin/bash
 
 set -e
+
 read -p '請輸入email: ' EMAIL
+
 apt-get update
 apt-get install -y cron
+
 cd /tmp
 git clone https://github.com/acmesh-official/acme.sh.git
 cd ./acme.sh

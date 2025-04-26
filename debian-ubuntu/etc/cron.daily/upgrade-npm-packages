@@ -1,11 +1,14 @@
 #!/bin/bash
 
 set -e
+
 npm upgrade -g
 corepack disable pnpm
+corepack disable yarn
 npm i -g \
     bun@latest \
     npm@latest \
-    pnpm@latest
+    pnpm@latest \
+    yarn@latest
 
 npm cache clean -g --force

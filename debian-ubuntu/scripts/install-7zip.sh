@@ -1,10 +1,12 @@
 #!/bin/bash
 
 set -e
+
 ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
 cd "$ROOT_DIR"
 . ./scripts/common.sh
 
+sudo rm -rf /opt/7zip
 sudo mkdir -p /opt/7zip
 cd /opt/7zip
 sudo wget https://www.7-zip.org/a/7z2409-linux-x64.tar.xz

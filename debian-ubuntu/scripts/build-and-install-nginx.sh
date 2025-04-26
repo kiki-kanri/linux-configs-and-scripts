@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+
 ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
 cd "$ROOT_DIR"
 . ./scripts/common.sh
@@ -76,6 +77,7 @@ git clone https://github.com/tokers/zstd-nginx-module --recurse-submodules
 if [ "$IS_UPGRADE" = '1' ]; then
     sudo rm -rf /tmp/nginx.old
     sudo cp -frp /etc/nginx /tmp/nginx.old
+    sudo rm -rf /etc/nginx
 fi
 
 # Build and install nginx

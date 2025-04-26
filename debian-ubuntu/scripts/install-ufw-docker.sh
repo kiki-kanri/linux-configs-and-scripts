@@ -3,6 +3,7 @@
 # Install and setup ufw-docekr (https://github.com/chaifeng/ufw-docker#ufw-docker-%E5%B7%A5%E5%85%B7)
 
 set -e
+
 ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
 cd "$ROOT_DIR"
 . ./scripts/common.sh
