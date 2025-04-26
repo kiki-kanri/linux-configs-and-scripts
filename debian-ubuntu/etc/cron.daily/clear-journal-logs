@@ -1,4 +1,6 @@
 #!/bin/bash
 
+exec >/dev/null
+
 journalctl --rotate
 journalctl --vacuum-time=3d

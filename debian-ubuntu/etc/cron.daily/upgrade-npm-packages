@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+exec >/dev/null
 
 npm upgrade -g
 corepack disable pnpm
