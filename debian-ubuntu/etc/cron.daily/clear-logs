@@ -1,0 +1,21 @@
+#!/bin/bash
+
+exec >/dev/null
+
+## journal
+journalctl --rotate
+journalctl --vacuum-time=3d
+
+## /var
+# truncate -s 0 /var/log/btmp /var/log/lastlog /var/log/wtmp
+find /var/log/ -type f -mtime +3 -name '*.log' -exec truncate -s 0 {} +
+find /var/log/ \
+    -type f \
+    -mtime +3 \
+    \( -name '*.bz2' -o -name '*.gz' -o -name '*.tar' -o -name '*.xz' -o -name '*.zip' \) \
+    -delete
+
+find /var/log/ \
+    -mtime +3 \
+    -type f \( -name '*.old' -o -name '*.log.1' \) \
+    -delete
