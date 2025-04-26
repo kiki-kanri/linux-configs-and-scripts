@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -e
+
 KEYDB_MAIN_PASSWORD=$(cat /run/secrets/KEYDB_MAIN_PASSWORD)
 if [ -n "$KEYDB_MAIN_PASSWORD" ] && [ "$KEYDB_MAIN_PASSWORD" -ne 0 ]; then
     if [ "$KEYDB_MAIN_PASSWORD" -ge 96 ]; then

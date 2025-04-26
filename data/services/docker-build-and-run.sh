@@ -1,11 +1,10 @@
 #!/bin/bash
 
 set -e
+
 cd "$(dirname "$(readlink -f "$0")")"
 
-if [[ "$*" == *'-p'* ]]; then
-    docker compose pull
-fi
+[[ "$*" == *'-p'* ]] && docker compose pull
 
 gcc \
     -fPIC \
@@ -23,5 +22,5 @@ gcc \
     -Wl,-z,now \
     -Wl,-z,relro
 
-docker compose build
+COMPOSE_BAKE=true docker compose build
 docker compose up -d --remove-orphans

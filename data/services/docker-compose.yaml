@@ -48,6 +48,7 @@ services:
   mongodb-main-data-1:
     <<: *base-mongodb-options
     container_name: mongodb-main-data-1
+    hostname: mongodb-main-data-1
     ports:
       - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017'
     volumes:
@@ -58,6 +59,7 @@ services:
   mongodb-main-data-2:
     <<: *base-mongodb-options
     container_name: mongodb-main-data-2
+    hostname: mongodb-main-data-2
     ports:
       - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017'
     volumes:
@@ -68,6 +70,7 @@ services:
   mongodb-main-data-3:
     <<: *base-mongodb-options
     container_name: mongodb-main-data-3
+    hostname: mongodb-main-data-3
     ports:
       - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017'
     volumes:
