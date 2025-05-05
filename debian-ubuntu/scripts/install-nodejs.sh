@@ -10,4 +10,4 @@ sudo apt-get update
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt-get update
 sudo apt-get install -y nodejs
-../etc/cron.daily/upgrade-npm-packages
+./etc/cron.daily/upgrade-npm-packages
