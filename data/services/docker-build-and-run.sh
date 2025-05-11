@@ -2,9 +2,10 @@
 
 set -e
 
-cd "$(dirname "$(readlink -f "$0")")"
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+cd "$SCRIPT_DIR"
 
-[[ "$*" == *'-p'* ]] && docker compose pull
+[[ " $@ " =~ ' -p ' ]] && docker compose pull
 
 gcc \
     -fPIC \

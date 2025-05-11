@@ -2,7 +2,8 @@
 
 set -e
 
-cd "$(dirname "$(readlink -f "$0")")"
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+cd "$SCRIPT_DIR"
 
 echo "[startup] Container started at $(date)."
 echo "[startup] Hostname: $(hostname)."
