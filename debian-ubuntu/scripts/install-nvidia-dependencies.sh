@@ -2,8 +2,9 @@
 
 set -e
 
-ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
-cd "$ROOT_DIR"
+BASE_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../")"
+cd "$BASE_DIR"
+
 . ./scripts/common.sh
 
 if [ ! "$os_type" = 'ubuntu' ] || [ ! "$os_version_id" = '24.04' ]; then

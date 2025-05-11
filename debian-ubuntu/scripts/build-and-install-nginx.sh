@@ -2,8 +2,9 @@
 
 set -e
 
-ROOT_DIR="$(realpath "$(dirname "$(readlink -f "$0")")"/../)"
-cd "$ROOT_DIR"
+BASE_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../")"
+cd "$BASE_DIR"
+
 . ./scripts/common.sh
 
 IS_UPGRADE='0'
@@ -146,6 +147,7 @@ sudo apt-get remove -y --auto-remove --purge $DEVELOP_PACKAGES
 sudo apt-get install -y $RUNTIME_PACKAGES
 cd /tmp
 rm -fr "./nginx-$NGINX_VERSION" "./nginx-$NGINX_VERSION.tar.gz"* ./ngx_brotli ./zstd-nginx-module
+cd "$BASE_DIR"
 
 # Configure nginx
 if [ "$IS_UPGRADE" = '1' ]; then
@@ -160,11 +162,11 @@ else
     id -u nginx || sudo useradd -r -s /sbin/nologin nginx
     sudo mkdir -p /var/cache/nginx /var/log/nginx /etc/nginx/certs
     sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096
-    sudo cp -frp "$ROOT_DIR/etc/nginx" /etc/
-    sudo cp -fp "$ROOT_DIR/etc/systemd/system/nginx.service" /etc/systemd/system/
+    sudo cp -frp ./etc/nginx /etc/
+    sudo cp -fp ./etc/systemd/system/nginx.service /etc/systemd/system/
     sudo systemctl daemon-reload
     sudo systemctl enable nginx
-    sudo cp -fp "$ROOT_DIR/scripts/generate-nginx-dhparam.pem.sh" /etc/cron.monthly/generate-nginx-dhparam.pem
+    sudo cp -fp ./scripts/generate-nginx-dhparam.pem.sh /etc/cron.monthly/generate-nginx-dhparam.pem
 fi
 
 sudo systemctl restart nginx
