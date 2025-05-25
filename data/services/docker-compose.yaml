@@ -52,6 +52,7 @@ services:
     ports:
       - ${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017
     volumes:
+      - ${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups
       - ${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db
       - ./mongodb:/opt/mongodb
       - mongodb-main-data-1-config:/data/configdb
@@ -63,6 +64,7 @@ services:
     ports:
       - ${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017
     volumes:
+      - ${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups
       - ${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db
       - ./mongodb:/opt/mongodb
       - mongodb-main-data-2-config:/data/configdb
@@ -74,6 +76,7 @@ services:
     ports:
       - ${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017
     volumes:
+      - ${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups
       - ${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db
       - ./mongodb:/opt/mongodb
       - mongodb-main-data-3-config:/data/configdb
