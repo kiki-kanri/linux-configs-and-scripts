@@ -3,7 +3,7 @@
 set -e
 
 BASE_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../")"
-cd "$BASE_DIR"
+cd "${BASE_DIR}"
 
 . ./scripts/common.sh
 

@@ -4,10 +4,10 @@ x-base-mongodb-options: &base-mongodb-options
   entrypoint: /opt/mongodb/entrypoint.sh
   environment:
     GLIBC_TUNABLES: glibc.pthread.rseq=0
-    MONGODB_MAIN_DATA_1_EXPOSE_PORT: $MONGODB_MAIN_DATA_1_EXPOSE_PORT
-    MONGODB_MAIN_DATA_2_EXPOSE_PORT: $MONGODB_MAIN_DATA_2_EXPOSE_PORT
-    MONGODB_MAIN_DATA_3_EXPOSE_PORT: $MONGODB_MAIN_DATA_3_EXPOSE_PORT
-    MONGODB_MAIN_RS_HOST: $MONGODB_MAIN_RS_HOST
+    MONGODB_MAIN_DATA_1_EXPOSE_PORT: ${MONGODB_MAIN_DATA_1_EXPOSE_PORT}
+    MONGODB_MAIN_DATA_2_EXPOSE_PORT: ${MONGODB_MAIN_DATA_2_EXPOSE_PORT}
+    MONGODB_MAIN_DATA_3_EXPOSE_PORT: ${MONGODB_MAIN_DATA_3_EXPOSE_PORT}
+    MONGODB_MAIN_RS_HOST: ${MONGODB_MAIN_RS_HOST}
   image: mongodb/mongodb-community-server:8.0-ubuntu2204
   restart: always
   user: root:nogroup
@@ -35,8 +35,8 @@ services:
   mariadb-main:
     container_name: mariadb-main
     environment:
-      MARIADB_ROOT_PASSWORD: $MARIADB_MAIN_ROOT_PASSWORD
-      TZ: $MARIADB_MAIN_TZ
+      MARIADB_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
+      TZ: ${MARIADB_MAIN_TZ}
     image: mariadb:latest
     ports:
       - ${MARIADB_MAIN_EXPOSE_HOST}:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306
@@ -86,7 +86,7 @@ services:
     container_name: phpmyadmin
     image: phpmyadmin/phpmyadmin:latest
     environment:
-      MYSQL_ROOT_PASSWORD: $MARIADB_MAIN_ROOT_PASSWORD
+      MYSQL_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
       PMA_HOST: mariadb-main
     ports:
       - ${PHPMYADMIN_EXPOSE_HOST}:${PHPMYADMIN_EXPOSE_PORT:-9001}:80

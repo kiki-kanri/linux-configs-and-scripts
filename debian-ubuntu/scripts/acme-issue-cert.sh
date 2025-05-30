@@ -10,21 +10,21 @@ export CF_Account_ID
 export CF_Zone_ID
 export CF_Token
 
-/root/.acme.sh/acme.sh --server letsencrypt --issue --dns dns_cf -d $ISSUE_DOMAIN -d *.$ISSUE_DOMAIN -k 4096
+/root/.acme.sh/acme.sh --server letsencrypt --issue --dns dns_cf -d ${ISSUE_DOMAIN} -d *.${ISSUE_DOMAIN} -k 4096
 echo 'Wait 15 seconds...'
 sleep 15
-/root/.acme.sh/acme.sh --server letsencrypt --issue --dns dns_cf -d $ISSUE_DOMAIN -d *.$ISSUE_DOMAIN -k ec-384
+/root/.acme.sh/acme.sh --server letsencrypt --issue --dns dns_cf -d ${ISSUE_DOMAIN} -d *.${ISSUE_DOMAIN} -k ec-384
 
-mkdir -p "/etc/nginx/certs/$ISSUE_DOMAIN/ecc" "/etc/nginx/certs/$ISSUE_DOMAIN/rsa"
-/root/.acme.sh/acme.sh --install-cert -d $ISSUE_DOMAIN \
-    --cert-file "/etc/nginx/certs/$ISSUE_DOMAIN/rsa/cert.pem" \
-    --key-file "/etc/nginx/certs/$ISSUE_DOMAIN/rsa/private.key" \
-    --fullchain-file "/etc/nginx/certs/$ISSUE_DOMAIN/rsa/fullchain.pem" \
-    --ca-file "/etc/nginx/certs/$ISSUE_DOMAIN/rsa/chain.pem" \
+mkdir -p "/etc/nginx/certs/${ISSUE_DOMAIN}/ecc" "/etc/nginx/certs/${ISSUE_DOMAIN}/rsa"
+/root/.acme.sh/acme.sh --install-cert -d ${ISSUE_DOMAIN} \
+    --cert-file "/etc/nginx/certs/${ISSUE_DOMAIN}/rsa/cert.pem" \
+    --key-file "/etc/nginx/certs/${ISSUE_DOMAIN}/rsa/private.key" \
+    --fullchain-file "/etc/nginx/certs/${ISSUE_DOMAIN}/rsa/fullchain.pem" \
+    --ca-file "/etc/nginx/certs/${ISSUE_DOMAIN}/rsa/chain.pem" \
     --reloadcmd 'sudo systemctl reload nginx'
 
-/root/.acme.sh/acme.sh --install-cert -d $ISSUE_DOMAIN --ecc \
-    --cert-file "/etc/nginx/certs/$ISSUE_DOMAIN/ecc/cert.pem" \
-    --key-file "/etc/nginx/certs/$ISSUE_DOMAIN/ecc/private.key" \
-    --fullchain-file "/etc/nginx/certs/$ISSUE_DOMAIN/ecc/fullchain.pem" \
+/root/.acme.sh/acme.sh --install-cert -d ${ISSUE_DOMAIN} --ecc \
+    --cert-file "/etc/nginx/certs/${ISSUE_DOMAIN}/ecc/cert.pem" \
+    --key-file "/etc/nginx/certs/${ISSUE_DOMAIN}/ecc/private.key" \
+    --fullchain-file "/etc/nginx/certs/${ISSUE_DOMAIN}/ecc/fullchain.pem" \
     --reloadcmd 'sudo systemctl reload nginx'

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ "$PPID" != '1' && "$0" != '-bash' ]]; then
+if [[ "${PPID}" != '1' && "$0" != '-bash' ]]; then
     nohup bash $0 "$@" >/dev/null 2>&1 &
     exit 0
 fi
