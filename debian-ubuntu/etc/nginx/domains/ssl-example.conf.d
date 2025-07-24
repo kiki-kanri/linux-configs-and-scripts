@@ -10,6 +10,5 @@ server {
     location / {
         include public/proxies/websocket.conf;
         proxy_pass http://127.0.0.1:3000;
-        # proxy_set_header Origin "$scheme://$host";
     }
 }
