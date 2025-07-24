@@ -4,10 +4,10 @@ x-base-mongodb-options: &base-mongodb-options
   entrypoint: /opt/mongodb/entrypoint.sh
   environment:
     GLIBC_TUNABLES: glibc.pthread.rseq=0
-    MONGODB_MAIN_DATA_1_EXPOSE_PORT: ${MONGODB_MAIN_DATA_1_EXPOSE_PORT}
-    MONGODB_MAIN_DATA_2_EXPOSE_PORT: ${MONGODB_MAIN_DATA_2_EXPOSE_PORT}
-    MONGODB_MAIN_DATA_3_EXPOSE_PORT: ${MONGODB_MAIN_DATA_3_EXPOSE_PORT}
-    MONGODB_MAIN_RS_HOST: ${MONGODB_MAIN_RS_HOST}
+    MONGODB_MAIN_DATA_1_EXPOSE_PORT: '${MONGODB_MAIN_DATA_1_EXPOSE_PORT}'
+    MONGODB_MAIN_DATA_2_EXPOSE_PORT: '${MONGODB_MAIN_DATA_2_EXPOSE_PORT}'
+    MONGODB_MAIN_DATA_3_EXPOSE_PORT: '${MONGODB_MAIN_DATA_3_EXPOSE_PORT}'
+    MONGODB_MAIN_RS_HOST: '${MONGODB_MAIN_RS_HOST}'
   image: mongodb/mongodb-community-server:8.0-ubuntu2204
   restart: always
   user: root:nogroup
@@ -23,7 +23,7 @@ services:
     entrypoint: /opt/keydb/entrypoint.sh
     image: eqalpha/keydb:alpine
     ports:
-      - ${KEYDB_MAIN_EXPOSE_HOST}:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379
+      - '${KEYDB_MAIN_EXPOSE_HOST}:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379'
     restart: always
     secrets:
       - KEYDB_MAIN_PASSWORD
@@ -35,14 +35,14 @@ services:
   mariadb-main:
     container_name: mariadb-main
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
-      TZ: ${MARIADB_MAIN_TZ}
+      MARIADB_ROOT_PASSWORD: '${MARIADB_MAIN_ROOT_PASSWORD}'
+      TZ: '${MARIADB_MAIN_TZ}'
     image: mariadb:latest
     ports:
-      - ${MARIADB_MAIN_EXPOSE_HOST}:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306
+      - '${MARIADB_MAIN_EXPOSE_HOST}:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306'
     restart: always
     volumes:
-      - ${MARIADB_MAIN_FILES_PATH}:/var/lib/mysql
+      - '${MARIADB_MAIN_FILES_PATH}:/var/lib/mysql'
 
   # MongoDB data servers
   mongodb-main-data-1:
@@ -50,10 +50,10 @@ services:
     container_name: mongodb-main-data-1
     hostname: mongodb-main-data-1
     ports:
-      - ${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017
+      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017'
     volumes:
-      - ${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups
-      - ${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db
+      - '${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups'
+      - '${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db'
       - ./mongodb:/opt/mongodb
       - mongodb-main-data-1-config:/data/configdb
 
@@ -62,10 +62,10 @@ services:
     container_name: mongodb-main-data-2
     hostname: mongodb-main-data-2
     ports:
-      - ${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017
+      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017'
     volumes:
-      - ${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups
-      - ${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db
+      - '${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups'
+      - '${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db'
       - ./mongodb:/opt/mongodb
       - mongodb-main-data-2-config:/data/configdb
 
@@ -74,10 +74,10 @@ services:
     container_name: mongodb-main-data-3
     hostname: mongodb-main-data-3
     ports:
-      - ${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017
+      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017'
     volumes:
-      - ${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups
-      - ${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db
+      - '${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups'
+      - '${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db'
       - ./mongodb:/opt/mongodb
       - mongodb-main-data-3-config:/data/configdb
 
@@ -86,10 +86,10 @@ services:
     container_name: phpmyadmin
     image: phpmyadmin/phpmyadmin:latest
     environment:
-      MYSQL_ROOT_PASSWORD: ${MARIADB_MAIN_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: '${MARIADB_MAIN_ROOT_PASSWORD}'
       PMA_HOST: mariadb-main
     ports:
-      - ${PHPMYADMIN_EXPOSE_HOST}:${PHPMYADMIN_EXPOSE_PORT:-9001}:80
+      - '${PHPMYADMIN_EXPOSE_HOST}:${PHPMYADMIN_EXPOSE_PORT:-9001}:80'
     restart: always
 
   # Portainer
@@ -97,7 +97,7 @@ services:
     container_name: portainer
     image: portainer/portainer-ce:alpine-sts
     ports:
-      - ${PORTAINER_EXPOSE_HOST}:${PORTAINER_EXPOSE_PORT:-9000}:9000
+      - '${PORTAINER_EXPOSE_HOST}:${PORTAINER_EXPOSE_PORT:-9000}:9000'
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -108,7 +108,7 @@ services:
     container_name: verdaccio
     image: verdaccio/verdaccio
     ports:
-      - ${VERDACCIO_EXPOSE_HOST}:${VERDACCIO_EXPOSE_PORT:-4873}:4873
+      - '${VERDACCIO_EXPOSE_HOST}:${VERDACCIO_EXPOSE_PORT:-4873}:4873'
     restart: always
     volumes:
       - verdaccio-conf:/verdaccio/conf

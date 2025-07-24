@@ -36,11 +36,11 @@ handle_sigterm() {
     echo '[trap] SIGTERM caught, forwarding to mongod...'
     pkill -TERM mongod
     echo '[trap] Waiting for mongod to exit...'
-    wait ${PY_PID}
+    wait "${PY_PID}"
 }
 
 [ "$(hostname)" = 'mongodb-main-data-1' ] && ensure_replica_set_initialized &
 LD_PRELOAD='./libforce_enable_thp.so' python3 /usr/local/bin/docker-entrypoint.py --replSet rs0 &
-PY_PID=$!
+PY_PID="$!"
 trap handle_sigterm SIGTERM SIGINT
-wait ${PY_PID}
+wait "${PY_PID}"
