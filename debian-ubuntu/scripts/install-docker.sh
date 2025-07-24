@@ -7,14 +7,18 @@ cd "${BASE_DIR}"
 
 . ./scripts/common.sh
 
+sudo apt-get update
+
 if [ "${os_type}" = 'debian' ]; then
-    to_remove_packages='docker.io docker-doc docker-compose podman-docker containerd runc'
+    for package in docker.io docker-doc docker-compose podman-docker containerd runc; do
+        sudo apt-get remove -y --auto-remove --purge "${package}";
+    done
 elif [ "${os_type}" = 'ubuntu' ]; then
-    to_remove_packages='docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc'
+    for package in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+        sudo apt-get remove -y --auto-remove --purge "${package}";
+    done
 fi
 
-sudo apt-get update
-sudo apt-get remove --auto-remove --purge "${to_remove_packages}"
 sudo apt-get install ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL "https://download.docker.com/linux/${os_type}/gpg" -o /etc/apt/keyrings/docker.asc
