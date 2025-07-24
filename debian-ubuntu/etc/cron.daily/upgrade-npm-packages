@@ -8,6 +8,7 @@ corepack disable pnpm
 corepack disable yarn
 npm i -g \
     bun@latest \
+    eslint@latest \
     npm@latest \
     pnpm@latest \
     yarn@latest
