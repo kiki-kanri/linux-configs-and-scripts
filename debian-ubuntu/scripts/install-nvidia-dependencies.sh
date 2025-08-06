@@ -20,10 +20,11 @@ export PATH="/usr/local/cuda/bin:${PATH}"
 '
 
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo dpkg -i ./cuda-keyring_1.1-1_all.deb
 sudo apt update
-sudo apt install --no-install-recommends nvidia-headless-565 nvidia-utils-565
-sudo apt install --no-install-recommends cuda-toolkit-12-6
-sudo apt install --no-install-recommends cudnn-cuda-12
+sudo apt install --no-install-recommends nvidia-headless-580 nvidia-utils-580
+sudo apt install --no-install-recommends cuda-toolkit-12-9
+sudo apt install --no-install-recommends cudnn
 sudo bash -c "echo \"${CUDA_ENV_VARS}\" >> /etc/bash.bashrc"
 sudo bash -c "echo \"${CUDA_ENV_VARS}\" >> /etc/profile"
+sudo rm ./cuda-keyring_1.1-1_all.deb
