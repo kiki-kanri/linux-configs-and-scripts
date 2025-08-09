@@ -14,7 +14,7 @@ NGINX_VERSION='1.28.0'
 if [ -f /etc/nginx/nginx.conf ]; then
     echo 'Detected existing Nginx installation.'
     echo "If you continue, it will perform an upgrade to v${NGINX_VERSION}."
-    echo 'All files and folders in /etc/nginx will be reset EXCEPT: certs, domains, public, and nginx.conf.'
+    echo 'All files and folders in /etc/nginx will be reset EXCEPT: certs, domains, modules-available, modules-enabled, public, and nginx.conf.'
     echo -n 'Do you want to continue? (y/N) [n]: '
     read -r user_input
     user_input="${user_input,,}"
@@ -44,7 +44,19 @@ CC_OPT_FLAGS=(
     -Wformat
 )
 
-DEVELOP_PACKAGES='colormake g++ gcc libbrotli-dev libgeoip-dev libpcre3-dev libperl-dev libssl-dev libzstd-dev zlib1g-dev'
+DEVELOP_PACKAGES=(
+    colormake
+    g++
+    gcc
+    libbrotli-dev
+    libgeoip-dev
+    libmaxminddb-dev
+    libpcre3-dev
+    libssl-dev
+    libzstd-dev
+    zlib1g-dev
+)
+
 LD_OPT_FLAGS=(
     -flto=4
     -fuse-linker-plugin
@@ -58,21 +70,52 @@ LD_OPT_FLAGS=(
     -Wl,-z,relro
 )
 
-RUNTIME_PACKAGES='geoip-bin geoip-database libbrotli1 libgeoip1 libpcre3 libperl5.* libssl3 libzstd1 zlib1g'
+RUNTIME_PACKAGES=(
+    geoip-bin
+    geoip-database
+    libbrotli1
+    libgeoip1
+    libmaxminddb0
+    libpcre3
+    libssl3
+    libzstd1
+    zlib1g
+)
+
 [ "${os_type}" = 'debian' ] && CC_OPT_FLAGS+=(-Wp,-D_FORTIFY_SOURCE=2)
 
-# Install packages
+# Install develop packages
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends ${DEVELOP_PACKAGES} git
+sudo apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" git
+
+# Create temp directory and switch to it
+TMP_DIR_PATH='/tmp/build-and-install-nginx'
+rm -rf "${TMP_DIR_PATH}"
+mkdir -p "${TMP_DIR_PATH}"
+cd "${TMP_DIR_PATH}"
 
 #  Clone brotli module
-cd /tmp
 rm -fr ./ngx_brotli
-git clone https://github.com/google/ngx_brotli.git --recurse-submodules
+git clone https://github.com/google/ngx_brotli.git --recurse-submodules &
+
+# Clone GeoIp2 module
+rm -fr ./ngx_http_geoip2_module
+git clone https://github.com/leev/ngx_http_geoip2_module --recurse-submodules &
+
+# Clone lua module
+# rm -fr ./lua-nginx-module
+# git clone https://github.com/openresty/lua-nginx-module --recurse-submodules &
+
+# Clone ndk
+# rm -fr ./ngx_devel_kit
+# git clone https://github.com/vision5/ngx_devel_kit --recurse-submodules &
 
 # Clone zstd module
 rm -fr ./zstd-nginx-module
-git clone https://github.com/tokers/zstd-nginx-module --recurse-submodules
+git clone https://github.com/tokers/zstd-nginx-module --recurse-submodules &
+
+# Wait for all git clones to finish
+wait
 
 # Copy old files if upgrading
 if [ "${IS_UPGRADE}" = '1' ]; then
@@ -87,6 +130,7 @@ wget "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"
 tar -zxvf "./nginx-${NGINX_VERSION}.tar.gz"
 cd "./nginx-${NGINX_VERSION}"
 ./configure \
+    --add-dynamic-module=../ngx_http_geoip2_module \
     --add-module=../ngx_brotli \
     --add-module=../zstd-nginx-module \
     --conf-path=/etc/nginx/nginx.conf \
@@ -116,7 +160,6 @@ cd "./nginx-${NGINX_VERSION}"
     --with-http_gunzip_module \
     --with-http_gzip_static_module \
     --with-http_mp4_module \
-    --with-http_perl_module=dynamic \
     --with-http_random_index_module \
     --with-http_realip_module \
     --with-http_secure_link_module \
@@ -133,8 +176,6 @@ cd "./nginx-${NGINX_VERSION}"
     --without-select_module \
     --with-pcre-jit \
     --with-stream \
-    --with-stream=dynamic \
-    --with-stream_geoip_module \
     --with-stream_geoip_module=dynamic \
     --with-stream_realip_module \
     --with-stream_ssl_module \
@@ -143,16 +184,17 @@ cd "./nginx-${NGINX_VERSION}"
 
 colormake -j$(nproc)
 sudo colormake install
-sudo apt-get remove -y --auto-remove --purge ${DEVELOP_PACKAGES}
-sudo apt-get install -y ${RUNTIME_PACKAGES}
-cd /tmp
-rm -fr "./nginx-${NGINX_VERSION}" "./nginx-${NGINX_VERSION}.tar.gz"* ./ngx_brotli ./zstd-nginx-module
+sudo apt-get remove -y --auto-remove --purge "${DEVELOP_PACKAGES[@]}"
+sudo apt-get install -y "${RUNTIME_PACKAGES[@]}"
 cd "${BASE_DIR}"
 
 # Configure nginx
 if [ "${IS_UPGRADE}" = '1' ]; then
-    sudo cp -frp /tmp/nginx.old/certs \
+    sudo cp -frp \
+        /tmp/nginx.old/certs \
         /tmp/nginx.old/domains \
+        /tmp/nginx.old/modules-available \
+        /tmp/nginx.old/modules-enabled \
         /tmp/nginx.old/public \
         /tmp/nginx.old/nginx.conf \
         /etc/nginx
@@ -170,3 +212,7 @@ else
 fi
 
 sudo systemctl restart nginx
+
+# Cleanup
+sudo rm -rf "${TMP_DIR_PATH}"
+sudo rm -rf /usr/lib/nginx/modules/*.old
