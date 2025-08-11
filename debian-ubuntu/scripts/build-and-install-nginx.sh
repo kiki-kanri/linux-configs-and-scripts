@@ -14,9 +14,9 @@ NGINX_VERSION='1.28.0'
 if [ -f /etc/nginx/nginx.conf ]; then
     echo 'Detected existing Nginx installation.'
     echo "If you continue, it will perform an upgrade to v${NGINX_VERSION}."
-    echo 'All files and folders in /etc/nginx will be reset EXCEPT: certs, domains, modules-available, modules-enabled, public, and nginx.conf.'
-    echo -n 'Do you want to continue? (y/N) [n]: '
-    read -r user_input
+    echo 'All files and folders in /etc/nginx will be reset EXCEPT: certs, domains, public, and nginx.conf.'
+    echo 'Old files will be moved to /tmp/nginx.old.'
+    read -r -p 'Do you want to continue? (y/N) [n]: ' user_input
     user_input="${user_input,,}"
     if [ "${user_input}" != 'y' ]; then
         echo 'Aborted by user.'
@@ -28,46 +28,26 @@ else
     echo "Installing Nginx v${NGINX_VERSION}..."
 fi
 
-CC_OPT_FLAGS=(
-    -fipa-pta
-    -flto=4
-    -fomit-frame-pointer
-    -fPIC
-    -fstack-clash-protection
-    -fstack-protector-strong
-    -fstrict-aliasing
-    -g
-    -march=native
-    -O3
-    -pthread
-    -Werror=format-security
-    -Wformat
-)
+# Toolchain: Clang + LLD
+export AR='llvm-ar'
+export CC='clang'
+export CXX='clang++'
+export RANLIB='llvm-ranlib'
 
+# Packages
 DEVELOP_PACKAGES=(
+    clang
     colormake
-    g++
-    gcc
+    cmake
     libbrotli-dev
     libgeoip-dev
     libmaxminddb-dev
     libpcre3-dev
-    libssl-dev
     libzstd-dev
+    lld
+    llvm
+    ninja-build
     zlib1g-dev
-)
-
-LD_OPT_FLAGS=(
-    -flto=4
-    -fuse-linker-plugin
-    -lpthread
-    -pie
-    -Wl,--as-needed
-    -Wl,-Bsymbolic-functions
-    -Wl,--gc-sections
-    -Wl,-O2
-    -Wl,-z,now
-    -Wl,-z,relro
 )
 
 RUNTIME_PACKAGES=(
@@ -77,41 +57,67 @@ RUNTIME_PACKAGES=(
     libgeoip1
     libmaxminddb0
     libpcre3
-    libssl3
     libzstd1
     zlib1g
 )
 
-[ "${os_type}" = 'debian' ] && CC_OPT_FLAGS+=(-Wp,-D_FORTIFY_SOURCE=2)
-
 # Install develop packages
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" git
+sudo apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" g++ gcc git pkg-config wget
 
-# Create temp directory and switch to it
+# Temp workspace
 TMP_DIR_PATH='/tmp/build-and-install-nginx'
 rm -rf "${TMP_DIR_PATH}"
 mkdir -p "${TMP_DIR_PATH}"
 cd "${TMP_DIR_PATH}"
 
+# Build BoringSSL
+BUILD_BORING_SSL_C_FLAGS=(
+    -fdata-sections
+    -ffunction-sections
+    -flto=thin
+    -fomit-frame-pointer
+    -fPIC
+    -fstack-clash-protection
+    -fstack-protector-strong
+    -fstrict-aliasing
+    -g
+    -march=native
+    -O3
+    -pthread
+)
+
+BUILD_BORING_SSL_LINKER_FLAGS=(
+    -flto=thin
+    -fuse-ld=lld
+)
+
+rm -rf ./boringssl
+git clone https://boringssl.googlesource.com/boringssl
+cmake \
+    -S ./boringssl \
+    -B ./boringssl/build \
+    -GNinja \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+    -DCMAKE_C_FLAGS_RELEASE="${BUILD_BORING_SSL_C_FLAGS[*]}" \
+    -DCMAKE_CXX_FLAGS_RELEASE="${BUILD_BORING_SSL_C_FLAGS[*]}" \
+    -DCMAKE_EXE_LINKER_FLAGS_RELEASE="${BUILD_BORING_SSL_LINKER_FLAGS[*]}" \
+    -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="${BUILD_BORING_SSL_LINKER_FLAGS[*]}"
+
+ninja -C ./boringssl/build -j"$(nproc)"
+
 #  Clone brotli module
-rm -fr ./ngx_brotli
+rm -rf ./ngx_brotli
 git clone https://github.com/google/ngx_brotli.git --recurse-submodules &
 
 # Clone GeoIp2 module
-rm -fr ./ngx_http_geoip2_module
+rm -rf ./ngx_http_geoip2_module
 git clone https://github.com/leev/ngx_http_geoip2_module --recurse-submodules &
 
-# Clone lua module
-# rm -fr ./lua-nginx-module
-# git clone https://github.com/openresty/lua-nginx-module --recurse-submodules &
-
-# Clone ndk
-# rm -fr ./ngx_devel_kit
-# git clone https://github.com/vision5/ngx_devel_kit --recurse-submodules &
-
 # Clone zstd module
-rm -fr ./zstd-nginx-module
+rm -rf ./zstd-nginx-module
 git clone https://github.com/tokers/zstd-nginx-module --recurse-submodules &
 
 # Wait for all git clones to finish
@@ -125,7 +131,42 @@ if [ "${IS_UPGRADE}" = '1' ]; then
 fi
 
 # Build and install nginx
-rm -fr "./nginx-${NGINX_VERSION}" "./nginx-${NGINX_VERSION}.tar.gz"*
+BORING_BUILD="${TMP_DIR_PATH}/boringssl/build"
+BORING_INC="${TMP_DIR_PATH}/boringssl/include"
+BUILD_NGINX_CC_OPT_FLAGS=(
+    -fdata-sections
+    -ffunction-sections
+    -flto=thin
+    -fomit-frame-pointer
+    -fPIC
+    -fstack-clash-protection
+    -fstack-protector-strong
+    -fstrict-aliasing
+    -g
+    -I${BORING_INC}
+    -march=native
+    -O3
+    -pthread
+    -Werror=format-security
+    -Wformat
+)
+
+[ "${os_type}" = 'debian' ] && BUILD_NGINX_CC_OPT_FLAGS+=(-Wp,-D_FORTIFY_SOURCE=2)
+
+BUILD_NGINX_LD_OPT_FLAGS=(
+    -flto=thin
+    -fuse-ld=lld
+    -L${BORING_BUILD}
+    -lpthread
+    -lstdc++
+    -Wl,--as-needed
+    -Wl,--gc-sections
+    -Wl,-O2
+    -Wl,-z,now
+    -Wl,-z,relro
+)
+
+rm -rf "./nginx-${NGINX_VERSION}" "./nginx-${NGINX_VERSION}.tar.gz"*
 wget "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"
 tar -zxvf "./nginx-${NGINX_VERSION}.tar.gz"
 cd "./nginx-${NGINX_VERSION}"
@@ -148,7 +189,7 @@ cd "./nginx-${NGINX_VERSION}"
     --prefix=/etc/nginx \
     --sbin-path=/usr/sbin/nginx \
     --user=nginx \
-    --with-cc-opt="${CC_OPT_FLAGS[*]}" \
+    --with-cc-opt="${BUILD_NGINX_CC_OPT_FLAGS[*]}" \
     --with-compat \
     --with-file-aio \
     --with-http_addition_module \
@@ -169,7 +210,7 @@ cd "./nginx-${NGINX_VERSION}"
     --with-http_sub_module \
     --with-http_v2_module \
     --with-http_v3_module \
-    --with-ld-opt="${LD_OPT_FLAGS[*]}" \
+    --with-ld-opt="${BUILD_NGINX_LD_OPT_FLAGS[*]}" \
     --with-mail \
     --with-mail_ssl_module \
     --without-poll_module \
@@ -182,37 +223,32 @@ cd "./nginx-${NGINX_VERSION}"
     --with-stream_ssl_preread_module \
     --with-threads
 
-colormake -j$(nproc)
+colormake -j"$(nproc)"
 sudo colormake install
-sudo apt-get remove -y --auto-remove --purge "${DEVELOP_PACKAGES[@]}"
-sudo apt-get install -y "${RUNTIME_PACKAGES[@]}"
-cd "${BASE_DIR}"
 
 # Configure nginx
+cd "${BASE_DIR}"
+
 if [ "${IS_UPGRADE}" = '1' ]; then
     sudo cp -frp \
         /tmp/nginx.old/certs \
         /tmp/nginx.old/domains \
-        /tmp/nginx.old/modules-available \
-        /tmp/nginx.old/modules-enabled \
         /tmp/nginx.old/public \
         /tmp/nginx.old/nginx.conf \
         /etc/nginx
-
-    sudo rm -rf /tmp/nginx.old
 else
     id -u nginx || sudo useradd -r -s /sbin/nologin nginx
     sudo mkdir -p /var/cache/nginx /var/log/nginx /etc/nginx/certs
-    sudo openssl dhparam -dsaparam -out /etc/nginx/certs/dhparam.pem 4096
     sudo cp -frp ./etc/nginx /etc/
     sudo cp -fp ./etc/systemd/system/nginx.service /etc/systemd/system/
     sudo systemctl daemon-reload
     sudo systemctl enable nginx
-    sudo cp -fp ./scripts/generate-nginx-dhparam.pem.sh /etc/cron.monthly/generate-nginx-dhparam.pem
 fi
 
 sudo systemctl restart nginx
 
 # Cleanup
+sudo apt-get remove -y --auto-remove --purge "${DEVELOP_PACKAGES[@]}"
+sudo apt-get install -y "${RUNTIME_PACKAGES[@]}"
 sudo rm -rf "${TMP_DIR_PATH}"
 sudo rm -rf /usr/lib/nginx/modules/*.old
