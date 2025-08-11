@@ -243,6 +243,7 @@ else
     sudo cp -fp ./etc/systemd/system/nginx.service /etc/systemd/system/
     sudo systemctl daemon-reload
     sudo systemctl enable nginx
+    sudo apt-mark hold nginx*
 fi
 
 sudo systemctl restart nginx
