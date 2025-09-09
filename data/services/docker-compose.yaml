@@ -1,17 +1,5 @@
 name: services
 
-x-base-mongodb-options: &base-mongodb-options
-  entrypoint: /opt/mongodb/entrypoint.sh
-  environment:
-    GLIBC_TUNABLES: glibc.pthread.rseq=0
-    MONGODB_MAIN_DATA_1_EXPOSE_PORT: '${MONGODB_MAIN_DATA_1_EXPOSE_PORT}'
-    MONGODB_MAIN_DATA_2_EXPOSE_PORT: '${MONGODB_MAIN_DATA_2_EXPOSE_PORT}'
-    MONGODB_MAIN_DATA_3_EXPOSE_PORT: '${MONGODB_MAIN_DATA_3_EXPOSE_PORT}'
-    MONGODB_MAIN_RS_HOST: '${MONGODB_MAIN_RS_HOST}'
-  image: mongodb/mongodb-community-server:8.0-ubuntu2204
-  restart: always
-  user: root:nogroup
-
 secrets:
   KEYDB_MAIN_PASSWORD:
     environment: KEYDB_MAIN_PASSWORD
@@ -44,42 +32,21 @@ services:
     volumes:
       - '${MARIADB_MAIN_FILES_PATH}:/var/lib/mysql'
 
-  # MongoDB data servers
-  mongodb-main-data-1:
-    <<: *base-mongodb-options
-    container_name: mongodb-main-data-1
-    hostname: mongodb-main-data-1
+  # MongoDB
+  mongodb-main:
+    container_name: mongodb-main
+    entrypoint: /opt/mongodb/entrypoint.sh
+    hostname: mongodb-main
+    image: mongodb/mongodb-community-server:8.0-ubuntu2204
     ports:
-      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_1_EXPOSE_PORT}:27017'
+      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_EXPOSE_PORT}:27017'
+    restart: always
+    user: root:nogroup
     volumes:
       - '${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups'
-      - '${MONGODB_MAIN_DATA_1_FILES_PATH}:/data/db'
+      - '${MONGODB_MAIN_FILES_PATH}:/data/db'
       - ./mongodb:/opt/mongodb
-      - mongodb-main-data-1-config:/data/configdb
-
-  mongodb-main-data-2:
-    <<: *base-mongodb-options
-    container_name: mongodb-main-data-2
-    hostname: mongodb-main-data-2
-    ports:
-      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_2_EXPOSE_PORT}:27017'
-    volumes:
-      - '${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups'
-      - '${MONGODB_MAIN_DATA_2_FILES_PATH}:/data/db'
-      - ./mongodb:/opt/mongodb
-      - mongodb-main-data-2-config:/data/configdb
-
-  mongodb-main-data-3:
-    <<: *base-mongodb-options
-    container_name: mongodb-main-data-3
-    hostname: mongodb-main-data-3
-    ports:
-      - '${MONGODB_MAIN_EXPOSE_HOST}:${MONGODB_MAIN_DATA_3_EXPOSE_PORT}:27017'
-    volumes:
-      - '${MONGODB_MAIN_BACKUPS_PATH}:/mnt/backups'
-      - '${MONGODB_MAIN_DATA_3_FILES_PATH}:/data/db'
-      - ./mongodb:/opt/mongodb
-      - mongodb-main-data-3-config:/data/configdb
+      - mongodb-main-config:/data/configdb
 
   # phpMyAdmin
   phpmyadmin:
@@ -117,9 +84,7 @@ services:
 
 volumes:
   keydb-main-data:
-  mongodb-main-data-1-config:
-  mongodb-main-data-2-config:
-  mongodb-main-data-3-config:
+  mongodb-main-config:
   portainer-data:
   verdaccio-conf:
   verdaccio-plugins:
