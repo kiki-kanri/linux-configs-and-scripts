@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 read -p '請輸入 Cloudflare帳號id: ' CF_Account_ID
 read -p '請輸入 Cloudflare區域id: ' CF_Zone_ID

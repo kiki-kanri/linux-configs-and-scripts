@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -euo pipefail
 
 KEYDB_MAIN_PASSWORD="$(cat /run/secrets/KEYDB_MAIN_PASSWORD)"
 

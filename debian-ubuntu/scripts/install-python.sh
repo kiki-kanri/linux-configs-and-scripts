@@ -1,8 +1,9 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-BASE_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../")"
+SCRIPTS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+BASE_DIR="$(cd -- "${SCRIPTS_DIR}/../" &>/dev/null && pwd)"
 cd "${BASE_DIR}"
 
 . ./scripts/common.sh
