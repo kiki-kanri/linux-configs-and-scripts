@@ -13,14 +13,14 @@ NGINX_VERSION='1.28.0'
 
 # Detect existing nginx install
 if [ -f /etc/nginx/nginx.conf ]; then
-    echo 'Detected existing Nginx installation.'
-    echo "If you continue, it will perform an upgrade to v${NGINX_VERSION}."
-    echo 'All files and folders in /etc/nginx will be reset EXCEPT: certs, domains, public, and nginx.conf.'
-    echo 'Old files will be moved to /tmp/nginx.old.'
-    read -r -p 'Do you want to continue? (y/N) [n]: ' user_input
+    echo 'Detected existing Nginx installation'
+    echo "If you continue, it will perform an upgrade to v${NGINX_VERSION}"
+    echo 'All files and folders in /etc/nginx will be reset EXCEPT: certs, domains, public, and nginx.conf'
+    echo 'Old files will be moved to /tmp/nginx.old'
+    read -r -p 'Do you want to continue? (y/N): ' user_input
     user_input="${user_input,,}"
     if [ "${user_input}" != 'y' ]; then
-        echo 'Aborted by user.'
+        echo 'Aborted by user'
         exit 1
     fi
 

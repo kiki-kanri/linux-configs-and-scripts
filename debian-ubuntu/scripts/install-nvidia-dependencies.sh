@@ -9,7 +9,7 @@ cd "${BASE_DIR}"
 . ./scripts/common.sh
 
 if [ ! "${os_type}" = 'ubuntu' ] || [ ! "${os_version_id}" = '24.04' ]; then
-    echo 'This script is only for Ubuntu 24.04.'
+    echo 'This script is only for Ubuntu 24.04'
     exit 1
 fi
 

@@ -17,13 +17,13 @@ for file in ./etc/cron.daily/*; do
         cp -f "${file}" /etc/cron.daily/
         chmod 700 "/etc/cron.daily/${filename}"
         chown root:root "/etc/cron.daily/${filename}"
-        echo "${filename} installed."
+        echo "${filename} installed"
         ;;
     [Nn]*)
-        echo "${filename} not installed."
+        echo "${filename} not installed"
         ;;
     *)
-        echo "Invalid choice. ${filename} not installed."
+        echo "Invalid choice. ${filename} not installed"
         ;;
     esac
 done

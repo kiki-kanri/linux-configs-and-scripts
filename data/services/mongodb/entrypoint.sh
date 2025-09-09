@@ -5,8 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 cd "${SCRIPT_DIR}"
 
-echo "[startup] Container started at $(date)."
-echo "[startup] Hostname: $(hostname)."
+echo "[startup] Container started at $(date)"
+echo "[startup] Hostname: $(hostname)"
 
 ensure_replica_set_initialized() {
     until mongosh --eval 'print("Waiting for MongoDB connection...")' --quiet; do
@@ -29,7 +29,7 @@ ensure_replica_set_initialized() {
         }
     "
 
-    echo '[init] Replica set initialized.'
+    echo '[init] Replica set initialized'
 }
 
 handle_sigterm() {
