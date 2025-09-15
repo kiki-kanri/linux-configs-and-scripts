@@ -1,23 +1,25 @@
 name: services
 
 secrets:
-  KEYDB_MAIN_PASSWORD:
-    environment: KEYDB_MAIN_PASSWORD
+  DRAGONFLY_MAIN_PASSWORD:
+    environment: DRAGONFLY_MAIN_PASSWORD
 
 services:
-  # KeyDB
-  keydb-main:
-    container_name: keydb-main
-    entrypoint: /opt/keydb/entrypoint.sh
-    image: eqalpha/keydb:alpine
+  # Dragonfly
+  dragonfly:
+    container_name: dragonfly-main
+    entrypoint: /opt/dragonfly/entrypoint.sh
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
     ports:
-      - '${KEYDB_MAIN_EXPOSE_HOST}:${KEYDB_MAIN_EXPOSE_PORT:-6379}:6379'
+      - ${DRAGONFLY_MAIN_EXPOSE_HOST}:${DRAGONFLY_MAIN_EXPOSE_PORT:-6379}:6379
     restart: always
     secrets:
-      - KEYDB_MAIN_PASSWORD
+      - DRAGONFLY_MAIN_PASSWORD
+    ulimits:
+      memlock: -1
     volumes:
-      - ./keydb:/opt/keydb
-      - keydb-main-data:/data
+      - ./dragonfly:/opt/dragonfly
+      - dragonfly-main-data:/data
 
   # MariaDB
   mariadb-main:
@@ -83,7 +85,7 @@ services:
       - verdaccio-storage:/verdaccio/storage
 
 volumes:
-  keydb-main-data:
+  dragonfly-main-data:
   mongodb-main-config:
   portainer-data:
   verdaccio-conf:
