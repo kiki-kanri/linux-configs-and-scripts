@@ -1,0 +1,40 @@
+[mysqld]
+
+# Enable the binary log.
+# This is required for replication and point-in-time recovery.
+# Docs: https://mariadb.com/docs/server/ha-and-performance/standard-replication/replication-and-binary-log-system-variables#log_bin
+log-bin = mariadb-bin
+
+# Unique server ID for replication.
+# Each server in a replication setup must have a different server-id.
+# Docs: https://mariadb.com/docs/server/ha-and-performance/standard-replication/replication-and-binary-log-system-variables#server_id
+server-id = 1
+
+# Binary logging format.
+# Possible values:
+#   STATEMENT - Logs the exact SQL statements executed. More compact, but not always deterministic.
+#   ROW       - Logs the actual changed rows. Larger logs, but safer and more accurate.
+#   MIXED     - Uses STATEMENT logging by default, but falls back to ROW when needed.
+# ROW is recommended for reliability.
+# Docs: https://mariadb.com/docs/server/server-management/server-monitoring-logs/binary-log/binary-log-formats
+binlog_format = ROW
+
+# Automatically remove binary logs after N days.
+# Docs: https://mariadb.com/docs/server/ha-and-performance/standard-replication/replication-and-binary-log-system-variables#expire_logs_days
+expire_logs_days = 7
+
+# Maximum size of a single binary log file before rolling over to a new one.
+# Docs: https://mariadb.com/docs/server/ha-and-performance/standard-replication/replication-and-binary-log-system-variables#max_binlog_size
+max_binlog_size = 1073741824
+
+# Upper limit for total disk space used by binary logs.
+# Docs: https://mariadb.com/docs/server/ha-and-performance/standard-replication/replication-and-binary-log-system-variables#max_binlog_total_size
+max_binlog_total_size = 10737418240
+
+# Only log changes for the specified database(s).
+# Docs: https://mariadb.com/docs/server/ha-and-performance/standard-replication/replication-and-binary-log-system-variables#binlog_do_db
+# binlog_do_db = appdb
+
+# Exclude specific databases from binary logging.
+# Docs: https://mariadb.com/docs/server/ha-and-performance/standard-replication/replication-and-binary-log-system-variables#binlog_ignore_db
+# binlog_ignore_db = mysql

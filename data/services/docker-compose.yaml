@@ -32,7 +32,9 @@ services:
       - '${MARIADB_MAIN_EXPOSE_HOST}:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306'
     restart: always
     volumes:
+      - '${MARIADB_MAIN_BACKUPS_PATH}:/mnt/backups'
       - '${MARIADB_MAIN_FILES_PATH}:/var/lib/mysql'
+      - ./mariadb/conf.d:/etc/mysql/conf.d
 
   # MongoDB
   mongodb-main:

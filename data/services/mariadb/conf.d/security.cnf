@@ -1,0 +1,10 @@
+[mysqld]
+
+# Disable DNS host name resolution (use IPs for user grants)
+skip-name-resolve
+
+# Disable symbolic links to prevent file access abuse
+skip-symbolic-links
+
+# Restrict import/export operations to a specific directory
+secure-file-priv=/mnt/backups

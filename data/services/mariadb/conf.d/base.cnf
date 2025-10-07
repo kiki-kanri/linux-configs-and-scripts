@@ -1,0 +1,19 @@
+[mysqld]
+
+# Default server character set
+character-set-server = utf8mb4
+
+# Default server collation
+collation-server     = utf8mb4_unicode_ci
+
+# Enforce strict SQL behavior (errors instead of silent truncation, no engine substitution)
+sql_mode = STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION
+
+# Store each InnoDB table in its own .ibd file
+innodb_file_per_table = 1
+
+# Flush log to disk at each transaction commit (highest durability)
+innodb_flush_log_at_trx_commit = 1
+
+# Sync binary log to disk at each transaction commit (highest durability)
+sync_binlog = 1
