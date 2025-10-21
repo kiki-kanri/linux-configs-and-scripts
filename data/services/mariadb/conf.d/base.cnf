@@ -17,3 +17,6 @@ innodb_flush_log_at_trx_commit = 1
 
 # Sync binary log to disk at each transaction commit (highest durability)
 sync_binlog = 1
+
+# Set default transaction isolation level to READ-COMMITTED for consistent and up-to-date reads across transactions
+transaction-isolation = READ-COMMITTED
