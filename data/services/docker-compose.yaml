@@ -6,7 +6,7 @@ secrets:
 
 services:
   # Dragonfly
-  dragonfly:
+  dragonfly-main:
     container_name: dragonfly-main
     entrypoint: /opt/dragonfly/entrypoint.sh
     image: docker.dragonflydb.io/dragonflydb/dragonfly
