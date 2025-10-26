@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-DRAGONFLY_MAIN_PASSWORD="$(cat /run/secrets/DRAGONFLY_MAIN_PASSWORD)"
+DRAGONFLY_MAIN_PASSWORD="$(cat /run/secrets/DRAGONFLY_MAIN_PASSWORD 2>/dev/null || echo '')"
 
 if [ -n "${DRAGONFLY_MAIN_PASSWORD}" ]; then
     if [ "${#DRAGONFLY_MAIN_PASSWORD}" -ge 96 ]; then
