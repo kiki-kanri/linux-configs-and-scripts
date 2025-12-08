@@ -24,7 +24,7 @@ cd ./ubuntu/24.04/
 log_green 'Installing base packages...'
 apt-get install -y bash-completion bsdmainutils htop locales lsd lsof rsync vim ufw
 
-log_green 'Installing files...'
+log_green 'Configuring...'
 
 # ─────────────────────────────
 # Ask for SSH port
@@ -68,17 +68,20 @@ done
 # ─────────────────────────────
 # Install files
 # ─────────────────────────────
+log_green 'Installing files...'
 rsync -aAXv --progress ./etc/ /etc/
 rsync -aAXv --progress ./root/ /root/
 
 # ─────────────────────────────
 # Apply SSH port to sshd_config
 # ─────────────────────────────
+log_green 'Setting SSH port...'
 sed -i "s/'SSH_PORT'/${SSH_PORT}/" /etc/ssh/sshd_config
 
 # ─────────────────────────────
 # Install helper scripts
 # ─────────────────────────────
+log_green 'Installing helper scripts...'
 echo '#!/bin/sh
 
 if [ $# -eq 0 ]; then
@@ -91,16 +94,29 @@ fi
 # ─────────────────────────────
 # Setup and enable ufw
 # ─────────────────────────────
+log_green 'Setting up ufw...'
 sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
 ufw allow "${SSH_PORT}"/tcp comment ssh
 
 # ─────────────────────────────
 # Set locale
 # ─────────────────────────────
+log_green 'Setting locale...'
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
 # ─────────────────────────────
 # Set timezone
 # ─────────────────────────────
+log_green 'Setting timezone...'
 timedatectl set-timezone "${TIMEZONE}"
+
+# ─────────────────────────────
+# Set timezone
+# ─────────────────────────────
+log_green 'Installing shmft...'
+curl -L https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_amd64 -o /usr/local/bin/shfmt
+sudo chmod +x /usr/local/bin/shfmt
+
+# Done
+log_green 'Done, make sure to reboot!'
