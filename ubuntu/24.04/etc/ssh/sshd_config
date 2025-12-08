@@ -129,7 +129,7 @@ Subsystem sftp /usr/lib/openssh/sftp-server
 #       PermitTTY no
 #       ForceCommand cvs server
 
-Port "SSH_PORT"
+Port 'SSH_PORT'
 AddressFamily inet
 PermitRootLogin yes
 MaxAuthTries 3

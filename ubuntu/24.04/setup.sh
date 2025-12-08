@@ -37,9 +37,11 @@ while true; do
         continue
     fi
 
-    if ss -tulpn | grep -q ":${SSH_PORT}\b"; then
-        log_red "Port ${SSH_PORT} is already in use"
-        continue
+    if [[ "${SSH_PORT}" != "22" ]]; then
+        if ss -tulpn | grep -q ":${SSH_PORT}\b"; then
+            log_red "Port ${SSH_PORT} is already in use"
+            continue
+        fi
     fi
 
     break
@@ -48,4 +50,8 @@ done
 # Install files
 rsync -av --progress ./etc/ /etc/
 rsync -av --progress ./root/ /root/
-sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
+sed -i "s/'SSH_PORT'/${SSH_PORT}/" /etc/ssh/sshd_config
+
+# Setup and enable ufw
+sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
+ufw allow "${SSH_PORT}"/tcp comment ssh
