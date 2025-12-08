@@ -1,5 +1,8 @@
 #!/bin/bash
 
+exec </dev/tty
+set -euo pipefail
+
 # Functions
 log_green() {
     echo -e "\033[32m$*\033[0m"
