@@ -1,6 +1,5 @@
 #!/bin/bash
 
-exec </dev/tty
 set -euo pipefail
 
 # Functions
@@ -27,7 +26,7 @@ log_green 'Installing files...'
 
 # Ask for SSH port
 while true; do
-    read -p "Please enter SSH port: " SSH_PORT
+    read -p "Please enter SSH port: " SSH_PORT </dev/tty
     [[ "${SSH_PORT}" =~ ^[0-9]+$ ]] || {
         log_red "Invalid port: must be a number"
         continue
