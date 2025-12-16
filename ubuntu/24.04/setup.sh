@@ -22,7 +22,26 @@ cd ./linux-configs-and-scripts/
 cd ./ubuntu/24.04/
 
 log_green 'Installing base packages...'
-apt-get install -y bash-completion bsdmainutils htop iftop locales lsd lsof net-tools nmap rsync vim ufw
+apt-get install -y \
+    bash-completion \
+    bsdmainutils \
+    ca-certificates \
+    htop \
+    iftop \
+    iputils-ping \
+    locales \
+    lsd \
+    lsof \
+    net-tools \
+    nmap \
+    rsync \
+    tmux \
+    tree \
+    vim \
+    ufw \
+    unzip
+
+apt-get remove -y --auto-remove --purge open-vm-tools
 
 log_green 'Configuring...'
 
