@@ -57,7 +57,7 @@ rm -rf \
 
 ### journal
 journalctl --rotate
-journalctl --vacuum-time=
+journalctl --vacuum-time=1s
 rm -rf /var/log/journal/*
 
 ### /var
