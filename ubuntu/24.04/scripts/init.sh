@@ -7,7 +7,7 @@ cd "${SCRIPTS_DIR}"
 
 # Set hostname
 read -rp "Enter hostname: " HOSTNAME
-echo "${HOSTNAME}" | tee /etc/hostname
+hostnamectl set-hostname "${HOSTNAME}"
 
 # Expand hard drive
 ./expand-disk-space.sh
