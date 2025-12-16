@@ -35,6 +35,7 @@ apt-get install -y \
     net-tools \
     nmap \
     rsync \
+    tcpdump \
     tmux \
     tree \
     vim \
@@ -88,8 +89,8 @@ done
 # Install files
 # ─────────────────────────────
 log_green 'Installing files...'
-rsync -aAXv --progress ./etc/ /etc/
-rsync -aAXv --progress ./root/ /root/
+rsync -av --progress ./etc/ /etc/
+rsync -av --progress ./root/ /root/
 
 # ─────────────────────────────
 # Apply SSH port to sshd_config
@@ -152,7 +153,7 @@ exit 0
 # Copy scripts
 # ─────────────────────────────
 mkdir /scripts
-rsync -aAXv --progress ./scripts/ /scripts/
+rsync -av --progress ./scripts/ /scripts/
 
 # Done
 log_green 'Done, make sure to reboot!'
