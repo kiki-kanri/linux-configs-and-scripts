@@ -89,8 +89,14 @@ done
 # Install files
 # ─────────────────────────────
 log_green 'Installing files...'
+
+OLD_MODE="$(stat -c '%a' /etc)"
 rsync -av --progress ./etc/ /etc/
+chmod "${OLD_MODE}" /etc
+
+OLD_MODE="$(stat -c '%a' /root)"
 rsync -av --progress ./root/ /root/
+chmod "${OLD_MODE}" /root
 
 # ─────────────────────────────
 # Apply SSH port to sshd_config
@@ -153,7 +159,9 @@ exit 0
 # Copy scripts
 # ─────────────────────────────
 mkdir /scripts
+OLD_MODE="$(stat -c '%a' /scripts)"
 rsync -av --progress ./scripts/ /scripts/
+chmod "${OLD_MODE}" /scripts
 
 # Done
 log_green 'Done, make sure to reboot!'
