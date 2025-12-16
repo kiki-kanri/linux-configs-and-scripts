@@ -89,7 +89,7 @@ if [ $# -eq 0 ]; then
 else
     du -had1 "$@" | sort -h | column -t
 fi
-' | sudo tee /usr/local/bin/ldu >/dev/null && sudo chmod +x /usr/local/bin/ldu
+' | tee /usr/local/bin/ldu >/dev/null && chmod +x /usr/local/bin/ldu
 
 # ─────────────────────────────
 # Setup and enable ufw
@@ -116,7 +116,24 @@ timedatectl set-timezone "${TIMEZONE}"
 # ─────────────────────────────
 log_green 'Installing shmft...'
 curl -L https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_amd64 -o /usr/local/bin/shfmt
-sudo chmod +x /usr/local/bin/shfmt
+chmod +x /usr/local/bin/shfmt
+
+# ─────────────────────────────
+# Enable rc-local service and setup
+# ─────────────────────────────
+log_green 'Enabling rc-local service...'
+systemctl enable rc-local.service
+rm -rf /etc/rc.local
+echo '#!/bin/bash
+
+exit 0
+' | tee /etc/rc.local >/dev/null && chmod 700 /etc/rc.local
+
+# ─────────────────────────────
+# Copy scripts
+# ─────────────────────────────
+mkdir /scripts
+rsync -aAXv --progress ./scripts/ /scripts/
 
 # Done
 log_green 'Done, make sure to reboot!'
