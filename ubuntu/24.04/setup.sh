@@ -152,14 +152,28 @@ systemctl enable rc-local.service
 rm -rf /etc/rc.local
 echo '#!/bin/bash
 
+/scripts/ensure-ssh-host-keys.sh
+
 exit 0
 ' | tee /etc/rc.local >/dev/null && chmod 700 /etc/rc.local
 
 # ─────────────────────────────
 # Copy scripts
 # ─────────────────────────────
+log_green 'Copying scripts...'
 mkdir /scripts
 rsync_dir /scripts/
+
+# ─────────────────────────────
+# Run scripts
+# ─────────────────────────────
+log_green 'Running scripts...'
+cd ../../debian-ubuntu/scripts/
+./install-7zip.sh
+./install-cat-motd.sh
+./disable-ipv6.sh
+./disable-motds.sh
+./install-setup-thp-service.sh
 
 # Done
 log_green 'Done, make sure to reboot!'

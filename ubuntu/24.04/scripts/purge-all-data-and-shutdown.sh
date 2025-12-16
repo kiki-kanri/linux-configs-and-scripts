@@ -1,15 +1,12 @@
 #!/bin/bash
 
-if [[ "${PPID}" != '1' && "$0" != '-bash' ]]; then
-    nohup bash $0 "$@" >/dev/null 2>&1 &
-    exit 0
-fi
-
-# 清除未使用內核、套件、快取與檔案
-apt-get remove -y --auto-remove --purge $(dpkg --list | grep 'linux-image-[0-9]' | grep -v "$(uname -r)" | awk '{ print $2 }')
+## Remove and clean packages
+apt-get remove --auto-remove --purge $(dpkg --list | grep 'linux-image-[0-9]' | grep -v "$(uname -r)" | awk '{ print $2 }')
 apt-get autoremove -y --purge
 apt-get autoclean
 apt-get clean
+
+## Remove files
 mkdir -p /root/.ssh && touch /root/.ssh/authorized_keys
 docker builder prune -af
 docker container prune -f
@@ -24,6 +21,7 @@ npm cache clean --force
 npm cache clean -g --force
 python3 -m pip cache purge
 rm -rf \
+    /etc/ssh/ssh_host_* \
     /root/.bash_history \
     /root/.bash_logout \
     /root/.cache/ \
@@ -48,20 +46,33 @@ rm -rf \
     /root/.wget-hsts \
     /tmp/* \
     /var/cache/apt/* \
+    /var/cache/debconf/* \
+    /var/crash/* \
     /var/lib/apt/lists/* \
+    /var/lib/dpkg/*-old \
+    /var/lib/systemd/coredump/* \
     /var/tmp/*
 
-# 清除日誌
-find /var/log/ -name '*.gz' -type f -exec rm -f {} +
-find /var/log/ -name '*.log' -exec truncate -s 0 {} +
-find /var/log/ -name '*.tar' -type f -exec rm -f {} +
-find /var/log/ -name '*.xz' -type f -exec rm -f {} +
-find /var/log/ -name '*.zip' -type f -exec rm -f {} +
-journalctl --rotate
-journalctl --vacuum-time=1s
-truncate -s 0 /var/log/btmp /var/log/lastlog /var/log/wtmp
+## Clear logs
 
-# 關閉系統
+### journal
+journalctl --rotate
+journalctl --vacuum-time=
+rm -rf /var/log/journal/*
+
+### /var
+truncate -s 0 /var/log/btmp /var/log/lastlog /var/log/wtmp
+find /var/log/ -type f -name '*.log' -exec truncate -s 0 {} +
+find /var/log/ \
+    -type f \
+    \( -name '*.bz2' -o -name '*.gz' -o -name '*.tar' -o -name '*.xz' -o -name '*.zip' \) \
+    -delete
+
+find /var/log/ \
+    -type f \( -name '*.old' -o -name '*.log.1' \) \
+    -delete
+
+## Sync and shut down
 sync
 echo 3 >/proc/sys/vm/drop_caches
 sleep 3
