@@ -46,7 +46,13 @@ apt-get install -y \
     tree \
     vim \
     ufw \
-    unzip
+    unzip \
+    acl \
+    htop \
+    iotop \
+    screen \
+    tar \
+    wget
 
 apt-get remove -y --auto-remove --purge open-vm-tools
 
