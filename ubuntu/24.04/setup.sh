@@ -161,7 +161,7 @@ exit 0
 # Copy scripts
 # ─────────────────────────────
 log_green 'Copying scripts...'
-mkdir /scripts
+mkdir -p /scripts
 rsync_dir /scripts/
 
 # ─────────────────────────────
@@ -169,11 +169,11 @@ rsync_dir /scripts/
 # ─────────────────────────────
 log_green 'Running scripts...'
 cd ../../debian-ubuntu/scripts/
-./install-7zip.sh || true
-./install-cat-motd.sh || true
-./disable-ipv6.sh || true
-./disable-motds.sh || true
-./install-setup-thp-service.sh || true
+./install-7zip.sh
+./install-cat-motd.sh
+./disable-ipv6.sh
+./disable-motds.sh
+./install-setup-thp-service.sh
 
 # Done
 log_green 'Done, make sure to reboot!'
