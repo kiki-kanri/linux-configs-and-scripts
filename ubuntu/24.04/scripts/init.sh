@@ -6,8 +6,8 @@ SCRIPTS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 cd "${SCRIPTS_DIR}"
 
 # Set hostname
-read -rp "Enter hostname: " hostname
-hostnamectl set-hostname "${hostname}"
+read -rp "Enter hostname: " HOSTNAME
+echo "${HOSTNAME}" | tee /etc/hostname
 
 # Expand hard drive
 ./expand-disk-space.sh
