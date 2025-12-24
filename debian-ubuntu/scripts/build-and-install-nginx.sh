@@ -8,8 +8,8 @@ cd "${BASE_DIR}"
 
 . ./scripts/common.sh
 
-IS_UPGRADE='0'
-NGINX_VERSION='1.28.0'
+IS_UPGRADE=false
+NGINX_VERSION='1.28.1'
 
 # Detect existing nginx install
 if [ -f /etc/nginx/nginx.conf ]; then
@@ -24,7 +24,7 @@ if [ -f /etc/nginx/nginx.conf ]; then
         exit 1
     fi
 
-    IS_UPGRADE='1'
+    IS_UPGRADE=true
 else
     echo "Installing Nginx v${NGINX_VERSION}..."
 fi
@@ -117,6 +117,10 @@ git clone https://github.com/google/ngx_brotli.git --recurse-submodules &
 rm -rf ./ngx_http_geoip2_module
 git clone https://github.com/leev/ngx_http_geoip2_module --recurse-submodules &
 
+# Clone headers more nginx module
+rm -rf ./headers-more-nginx-module
+git clone https://github.com/openresty/headers-more-nginx-module.git --recurse-submodules &
+
 # Clone zstd module
 rm -rf ./zstd-nginx-module
 git clone https://github.com/tokers/zstd-nginx-module --recurse-submodules &
@@ -125,7 +129,7 @@ git clone https://github.com/tokers/zstd-nginx-module --recurse-submodules &
 wait
 
 # Copy old files if upgrading
-if [ "${IS_UPGRADE}" = '1' ]; then
+if [ "${IS_UPGRADE}" = 'true' ]; then
     sudo rm -rf /tmp/nginx.old
     sudo cp -frp /etc/nginx /tmp/nginx.old
     sudo rm -rf /etc/nginx
@@ -142,8 +146,6 @@ BUILD_NGINX_CC_OPT_FLAGS=(
     -fPIC
     -fstack-clash-protection
     -fstack-protector-strong
-    -fstrict-aliasing
-    -g
     -I${BORING_INC}
     -march=native
     -O3
@@ -159,7 +161,6 @@ BUILD_NGINX_LD_OPT_FLAGS=(
     -fuse-ld=lld
     -L${BORING_BUILD}
     -lpthread
-    -lstdc++
     -Wl,--as-needed
     -Wl,--gc-sections
     -Wl,-O2
@@ -173,6 +174,7 @@ tar -zxvf "./nginx-${NGINX_VERSION}.tar.gz"
 cd "./nginx-${NGINX_VERSION}"
 ./configure \
     --add-dynamic-module=../ngx_http_geoip2_module \
+    --add-module=../headers-more-nginx-module \
     --add-module=../ngx_brotli \
     --add-module=../zstd-nginx-module \
     --conf-path=/etc/nginx/nginx.conf \
@@ -224,13 +226,13 @@ cd "./nginx-${NGINX_VERSION}"
     --with-stream_ssl_preread_module \
     --with-threads
 
-colormake -j"$(nproc)"
+colormake LINK='clang++' -j"$(nproc)"
 sudo colormake install
 
 # Configure nginx
 cd "${BASE_DIR}"
 
-if [ "${IS_UPGRADE}" = '1' ]; then
+if [ "${IS_UPGRADE}" = 'true' ]; then
     sudo cp -frp \
         /tmp/nginx.old/certs \
         /tmp/nginx.old/domains \
