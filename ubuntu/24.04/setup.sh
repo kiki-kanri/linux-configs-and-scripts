@@ -32,6 +32,7 @@ apt-get install -y \
     bash-completion \
     bsdmainutils \
     ca-certificates \
+    cron \
     htop \
     iftop \
     iputils-ping \
