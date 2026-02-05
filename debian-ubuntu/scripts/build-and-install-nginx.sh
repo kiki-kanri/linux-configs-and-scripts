@@ -9,7 +9,7 @@ cd "${BASE_DIR}"
 . ./scripts/common.sh
 
 IS_UPGRADE=false
-NGINX_VERSION='1.28.1'
+NGINX_VERSION='1.28.2'
 
 # Detect existing nginx install
 if [ -f /etc/nginx/nginx.conf ]; then
