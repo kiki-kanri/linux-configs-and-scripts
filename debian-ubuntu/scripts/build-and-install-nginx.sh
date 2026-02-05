@@ -252,7 +252,7 @@ fi
 sudo systemctl restart nginx
 
 # Cleanup
-sudo apt-get remove -y --auto-remove --purge "${DEVELOP_PACKAGES[@]}"
+sudo apt-get remove --auto-remove --purge "${DEVELOP_PACKAGES[@]}"
 sudo apt-get install -y "${RUNTIME_PACKAGES[@]}"
 sudo rm -rf "${TMP_DIR_PATH}"
 sudo rm -rf /usr/lib/nginx/modules/*.old
