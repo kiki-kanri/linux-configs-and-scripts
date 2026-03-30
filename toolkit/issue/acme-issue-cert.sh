@@ -30,6 +30,7 @@ DOMAIN=""
 CERT_DIR="/etc/nginx/certs"
 RELOAD_CMD="systemctl reload nginx"
 DNS_MODE="" # e.g. "dns_cf" (cloudflare), "dns_clouddns" (tencent), etc.
+FORCE_FLAG=""
 
 # ── Argument parsing ───────────────────────────────────────────
 parse_args() {
@@ -50,6 +51,10 @@ parse_args() {
         --dns)
             DNS_MODE="dns_$2"
             shift 2
+            ;;
+        --force | -f)
+            FORCE_FLAG="--force"
+            shift
             ;;
         --help | -h)
             show_help
@@ -82,6 +87,7 @@ Options:
   --dns PROVIDER        DNS provider for DNS-01 challenge (e.g. cloudflare, clouddns)
                         Required env vars per provider: see acme.sh wiki
                         Cloudflare: CF_Token, CF_Account_ID, CF_Zone_ID
+  --force, -f           Force re-issuance even if a valid cert already exists (acme.sh --force)
 
 Examples:
   # Cloudflare DNS-01 (recommended for wildcard)
@@ -201,6 +207,7 @@ ISSUE_CMD=(
     --dns "${DNS_MODE}"
     --keylength ec-384
     --server letsencrypt
+    ${FORCE_FLAG}
 )
 
 if [[ -z "${DNS_MODE}" ]]; then
