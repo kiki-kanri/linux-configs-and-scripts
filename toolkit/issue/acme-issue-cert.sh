@@ -45,7 +45,10 @@ parse_args() {
             shift 2
             ;;
         --dns)
-            DNS_MODE="dns_$2"
+            case "$2" in
+            cloudflare) DNS_MODE="dns_cf" ;;
+            *)          DNS_MODE="dns_$2" ;;
+            esac
             shift 2
             ;;
         --force | -f)
