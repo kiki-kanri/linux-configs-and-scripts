@@ -27,7 +27,6 @@ done
 
 # ── Default values ────────────────────────────────────────────
 DOMAIN=""
-EMAIL=""
 CERT_DIR="/etc/nginx/certs"
 RELOAD_CMD="systemctl reload nginx"
 DNS_MODE="" # e.g. "dns_cf" (cloudflare), "dns_clouddns" (tencent), etc.
@@ -38,10 +37,6 @@ parse_args() {
         case "$1" in
         --domain)
             DOMAIN="$2"
-            shift 2
-            ;;
-        --email)
-            EMAIL="$2"
             shift 2
             ;;
         --cert-dir)
@@ -82,7 +77,6 @@ Usage: acme-issue-cert.sh [options]
 
 Options:
   --domain DOMAIN       Domain to issue certificate for (required)
-  --email EMAIL         Account email for Let's Encrypt (required)
   --cert-dir PATH       Directory to store certificates [default: /etc/nginx/certs]
   --reload-cmd CMD      Command to reload service after renewal [default: systemctl reload nginx]
   --dns PROVIDER        DNS provider for DNS-01 challenge (e.g. cloudflare, clouddns)
@@ -108,12 +102,6 @@ interactive_prompt() {
     read -rp "Domain (e.g. example.com): " DOMAIN
     if [[ -z "${DOMAIN}" ]]; then
         log_error "Domain is required."
-        exit 1
-    fi
-
-    read -rp "Email for Let's Encrypt account: " EMAIL
-    if [[ -z "${EMAIL}" ]]; then
-        log_error "Email is required."
         exit 1
     fi
 
