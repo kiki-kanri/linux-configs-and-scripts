@@ -1,19 +1,15 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# acme-issue-cert.sh — Issue and install an ECC SSL certificate via acme.sh
+# acme-issue-cert.sh — Issue and install an ECC SSL certificate via acme.sh (DNS-01 only)
 #
 # Usage:
-#   acme-issue-cert.sh --domain example.com
-#   acme-issue-cert.sh --domain example.com \
+#   acme-issue-cert.sh --domain example.com --dns cloudflare
+#   acme-issue-cert.sh --domain example.com --dns clouddns \
 #       --cert-dir /etc/nginx/certs --reload-cmd "systemctl reload nginx"
-#   acme-issue-cert.sh --domain example.com \
-#       --dns cloudflare   # uses env: CF_Token, CF_Account_ID, CF_Zone_ID
 #
-# For DNS-01 challenge (recommended for wildcard certs, no port required):
+# DNS-01 challenge (no port required, recommended for wildcard):
 #   Cloudflare: export CF_Token, CF_Account_ID, CF_Zone_ID, then --dns cloudflare
 #   Other providers: see acme.sh wiki for --dns dns_<provider>
-#
-# Re-running re-issues and re-installs the certificate.
 
 set -Eeuo pipefail
 
@@ -60,10 +56,6 @@ parse_args() {
             show_help
             exit 0
             ;;
-        -d)
-            DOMAIN="$2"
-            shift 2
-            ;;
         *)
             log_error "Unknown argument: $1 (use --help)"
             exit 1
@@ -86,69 +78,23 @@ Options:
   --force, -f           Force re-issuance even if a valid cert already exists (acme.sh --force)
 
 Examples:
-  # Cloudflare DNS-01 (recommended for wildcard)
-  export CF_Token=your_token CF_Account_ID=id CF_Zone_ID=zone_id
-  acme-issue-cert.sh -d example.com -e admin@example.com --dns cloudflare
-
-  # Standalone HTTP-01 (requires port 80 open)
-  acme-issue-cert.sh -d example.com -e admin@example.com
-
-Run without arguments for interactive mode.
+  # Cloudflare DNS-01
+  export CF_Token=*** CF_Account_ID=id CF_Zone_ID=zone_id
+  acme-issue-cert.sh -d example.com --dns cloudflare
 EOF
 }
 
-# ── Interactive mode ──────────────────────────────────────────
-interactive_prompt() {
-    log_info "Interactive mode — press Enter to accept defaults"
-
-    read -rp "Domain (e.g. example.com): " DOMAIN
-    if [[ -z "${DOMAIN}" ]]; then
-        log_error "Domain is required."
-        exit 1
-    fi
-
-    read -rp "Certificate output directory [/etc/nginx/certs]: " _cert_dir
-    [[ -n "${_cert_dir}" ]] && CERT_DIR="${_cert_dir}"
-
-    read -rp "Reload command after renewal [systemctl reload nginx]: " _reload_cmd
-    [[ -n "${_reload_cmd}" ]] && RELOAD_CMD="${_reload_cmd}"
-
-    echo
-    echo "DNS Challenge Provider:"
-    echo "  1) Cloudflare (CF_Token, CF_Account_ID, CF_Zone_ID)"
-    echo "  2) None (HTTP-01 — requires port 80 open)"
-    read -rp "Choice [1]: " _dns_choice
-    case "${_dns_choice}" in
-    2 | http | HTTP | http-01 | HTTP-01) DNS_MODE="" ;;
-    *) DNS_MODE="dns_cf" ;;
-    esac
-
-    if [[ "${DNS_MODE}" == "dns_cf" ]]; then
-        if [[ -z "${CF_Token:-}" ]]; then
-            read -rp "CF_Token: " CF_Token
-            export CF_Token
-        fi
-        if [[ -z "${CF_Account_ID:-}" ]]; then
-            read -rp "CF_Account_ID: " CF_Account_ID
-            export CF_Account_ID
-        fi
-        if [[ -z "${CF_Zone_ID:-}" ]]; then
-            read -rp "CF_Zone_ID: " CF_Zone_ID
-            export CF_Zone_ID
-        fi
-    fi
-}
-
-# ── Parse / interactive ───────────────────────────────────────
-if [[ $# -gt 0 ]]; then
-    parse_args "$@"
-else
-    interactive_prompt
-fi
+# ── Parse arguments ───────────────────────────────────────────
+parse_args "$@"
 
 # ── Validation ───────────────────────────────────────────────
 if [[ -z "${DOMAIN}" ]]; then
     log_error "--domain is required. (use --help for usage)"
+    exit 1
+fi
+
+if [[ -z "${DNS_MODE}" ]]; then
+    log_error "--dns is required. (e.g. --dns cloudflare)"
     exit 1
 fi
 
@@ -195,13 +141,6 @@ ISSUE_CMD=(
     --server letsencrypt
     ${FORCE_FLAG}
 )
-
-if [[ -z "${DNS_MODE}" ]]; then
-    # HTTP-01: add webroot
-    log_warn "No --dns specified — using HTTP-01 challenge."
-    log_warn "Ensure port 80 is open and reachable."
-    ISSUE_CMD+=(-w /var/www/acme)
-fi
 
 log_info "Issuing ECC-384 certificate for ${DOMAIN}..."
 log_info "Command: ${ISSUE_CMD[*]}"
