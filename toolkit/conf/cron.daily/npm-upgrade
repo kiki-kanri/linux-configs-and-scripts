@@ -1,0 +1,14 @@
+#!/bin/bash
+# npm-upgrade — Update global npm packages daily
+# Managed by linux-configs-and-scripts toolkit
+#
+# Installed to: /etc/cron.daily/npm-upgrade
+
+npm i -g npm@latest
+corepack disable pnpm
+npm i -g \
+	bun@latest \
+	eslint@latest \
+	pnpm@latest
+
+npm cache clean -g --force

@@ -1,0 +1,18 @@
+[Unit]
+Description=THP Tuning for database workloads
+After=multi-user.target
+
+[Service]
+Type=oneshot
+# madvise: THP enabled but only used when apps explicitly request it.
+# MongoDB 8 calls madvise(MADV_HUGEPAGE) on its own working set.
+ExecStart=/bin/sh -c 'echo madvise > /sys/kernel/mm/transparent_hugepage/enabled'
+ExecStart=/bin/sh -c 'echo madvise > /sys/kernel/mm/transparent_hugepage/defrag'
+# Reduce khugepaged memory pressure during page faults
+ExecStart=/bin/sh -c 'echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none'
+# Required by Redis, MongoDB, etc. — allow memory overcommit
+ExecStart=/bin/sh -c 'echo 1 > /proc/sys/vm/overcommit_memory'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
