@@ -3,10 +3,10 @@
 # acme-issue-cert.sh — Issue and install an ECC SSL certificate via acme.sh
 #
 # Usage:
-#   acme-issue-cert.sh --domain example.com --email admin@example.com
-#   acme-issue-cert.sh --domain example.com --email admin@example.com \
+#   acme-issue-cert.sh --domain example.com
+#   acme-issue-cert.sh --domain example.com \
 #       --cert-dir /etc/nginx/certs --reload-cmd "systemctl reload nginx"
-#   acme-issue-cert.sh --domain example.com --email admin@example.com \
+#   acme-issue-cert.sh --domain example.com \
 #       --dns cloudflare   # uses env: CF_Token, CF_Account_ID, CF_Zone_ID
 #
 # For DNS-01 challenge (recommended for wildcard certs, no port required):
@@ -62,10 +62,6 @@ parse_args() {
             ;;
         -d)
             DOMAIN="$2"
-            shift 2
-            ;;
-        -e)
-            EMAIL="$2"
             shift 2
             ;;
         *)
@@ -153,16 +149,6 @@ fi
 # ── Validation ───────────────────────────────────────────────
 if [[ -z "${DOMAIN}" ]]; then
     log_error "--domain is required. (use --help for usage)"
-    exit 1
-fi
-
-if [[ -z "${EMAIL}" ]]; then
-    log_error "--email is required. (use --help for usage)"
-    exit 1
-fi
-
-if [[ ! "${EMAIL}" =~ .+@.+ ]]; then
-    log_error "Invalid email: ${EMAIL}"
     exit 1
 fi
 
