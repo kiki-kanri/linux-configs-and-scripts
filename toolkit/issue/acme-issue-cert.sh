@@ -237,10 +237,14 @@ fi
 # ── Install certificate ───────────────────────────────────────
 log_info "Installing certificate to ${ECC_DIR}..."
 
-"${ACMEBIN}" --install-cert -d "${DOMAIN}" --ecc \
+"${ACMEBIN}" \
+    --install-cert \
+    -d "${DOMAIN}" \
+    --ecc \
+    --ca-file "${ECC_DIR}/chain.pem" \
     --cert-file "${ECC_DIR}/cert.pem" \
-    --key-file "${ECC_DIR}/key.pem" \
     --fullchain-file "${ECC_DIR}/fullchain.pem" \
+    --key-file "${ECC_DIR}/key.pem" \
     --reloadcmd "${RELOAD_CMD}"
 
 log_success "ECC certificate issued and installed!"
