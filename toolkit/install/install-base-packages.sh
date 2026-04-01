@@ -16,7 +16,7 @@ require_root
 
 log_info "Installing base packages..."
 apt-get update
-apy-get upgrade -y
+apt-get upgrade -y
 apt-get install -y --no-install-recommends \
     bash-completion \
     bsdmainutils \
