@@ -2,12 +2,6 @@
 
 set -euo pipefail
 
-# Set constants
-ROOT_LIB_DIR="../../lib"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-TOOLKIT_DIR="../../toolkit"
-
 # Run
 cd /tmp
 apt-get update
@@ -17,6 +11,11 @@ git clone https://github.com/kiki-kanri/linux-configs-and-scripts
 cd ./linux-configs-and-scripts/
 ./modify-files-permissions.sh
 cd ./bootstrap/ubuntu/
+
+# Set constants
+ROOT_LIB_DIR="../../lib"
+SCRIPT_NAME='setup-ubuntu.sh'
+TOOLKIT_DIR="../../toolkit"
 
 # Load libs
 . "${ROOT_LIB_DIR}/log.sh"
