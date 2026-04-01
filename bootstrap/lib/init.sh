@@ -33,11 +33,10 @@ source "$BOOTSTRAP_LIB_DIR/render.sh"
 export BOOTSTRAP_DIR BOOTSTRAP_CONF_DIR BOOTSTRAP_LIB_DIR SHARED_LIB_DIR
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
-SSH_PORT="${SSH_PORT:-22}"
+# SSH_PORT and HOSTNAME are set interactively by prompt_* functions.
+# DRY_RUN is set by setup.sh from --dry-run flag.
 TIMEZONE="${TIMEZONE:-Asia/Taipei}"
 LOCALE="${LOCALE:-en_US.UTF-8}"
-HOSTNAME="${HOSTNAME:-}"
-DRY_RUN="${DRY_RUN:-0}"
 MANAGED_BY="bootstrap"
 
 # ── Logging helpers ──────────────────────────────────────────────────────────
