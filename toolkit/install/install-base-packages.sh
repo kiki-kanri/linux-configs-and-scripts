@@ -38,7 +38,6 @@ apt-get install -y --no-install-recommends \
     ufw \
     unzip \
     acl \
-    htop \
     iotop \
     screen \
     tar \

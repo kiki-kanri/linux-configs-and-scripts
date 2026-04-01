@@ -44,25 +44,34 @@ do_uninstall() {
 main() {
     local action=""
 
-    case "${1:-}" in
-    --uninstall | -u) action="uninstall" ;;
-    --help | -h)
-        echo "Usage: $0 [--uninstall]"
-        exit 0
-        ;;
-    "")
-        if [[ -f "${DEST}" ]]; then
-            log_info "cat MOTD script is already installed."
-            confirm "Reinstall?" --default=no && action="install" || exit 0
-        else
+    local skip_confirm=false
+
+    while getopts 'yu'h opt; do
+        case ${opt} in
+        y) skip_confirm=true ;;
+        u)
+            action="uninstall"
+            return 0
+            ;;
+        h)
+            echo "Usage: $0 [-y|--uninstall]"
+            exit 0
+            ;;
+        *) exit 1 ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [[ -f "${DEST}" ]]; then
+        log_info "cat MOTD script is already installed."
+        if [[ "${skip_confirm}" == true ]]; then
             action="install"
+        else
+            confirm "Reinstall?" --default=no && action="install" || exit 0
         fi
-        ;;
-    *)
-        log_error "Unknown argument: $1"
-        exit 1
-        ;;
-    esac
+    else
+        action="install"
+    fi
 
     case "${action}" in
     install) do_install ;;

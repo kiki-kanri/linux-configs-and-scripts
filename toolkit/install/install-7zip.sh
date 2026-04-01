@@ -120,6 +120,7 @@ main() {
     fi
 
     do_install
+    return
 }
 
 main "$@"

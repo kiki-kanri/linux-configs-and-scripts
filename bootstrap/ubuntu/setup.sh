@@ -77,7 +77,7 @@ rsync_dir /root/
 # Apply SSH port to sshd_config
 # ─────────────────────────────
 log_info 'Setting SSH port...'
-sed -i "s/'SSH_PORT'/${SSH_PORT}/" /etc/ssh/sshd_config
+sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
 
 # ─────────────────────────────
 # Install helper scripts
