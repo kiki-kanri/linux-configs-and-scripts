@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+# Set constants
+ROOT_LIB_DIR="../../lib"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
+TOOLKIT_DIR="../../toolkit"
+
 # Run
 cd /tmp
 apt-get update
@@ -13,43 +19,14 @@ cd ./linux-configs-and-scripts/
 cd ./bootstrap/ubuntu/
 
 # Load libs
+. "${ROOT_LIB_DIR}/log.sh"
 . ./lib.sh
 
 # Install base packages
-log_green 'Installing base packages...'
-apt-get update
-apy-get upgrade -y
-apt-get install -y --no-install-recommends \
-    bash-completion \
-    bsdmainutils \
-    ca-certificates \
-    cron \
-    htop \
-    iftop \
-    iputils-ping \
-    locales \
-    lsd \
-    lsof \
-    net-tools \
-    nmap \
-    rsync \
-    tcpdump \
-    tmux \
-    tree \
-    vim \
-    ufw \
-    unzip \
-    acl \
-    htop \
-    iotop \
-    screen \
-    tar \
-    wget
-
-apt-get remove -y --auto-remove --purge open-vm-tools
+"${TOOLKIT_DIR}/install/install-base-packages.sh"
 
 # Configure
-log_green 'Configuring...'
+log_info 'Configuring...'
 
 # ─────────────────────────────
 # Ask for SSH port
@@ -57,18 +34,18 @@ log_green 'Configuring...'
 while true; do
     read -p "Please enter SSH port: " SSH_PORT </dev/tty
     [[ "${SSH_PORT}" =~ ^[0-9]+$ ]] || {
-        log_red "Invalid port: must be a number"
+        log_error "Invalid port: must be a number"
         continue
     }
 
     if (($SSH_PORT < 1 || $SSH_PORT > 65535)); then
-        log_red "Invalid port: must be 1-65535"
+        log_error "Invalid port: must be 1-65535"
         continue
     fi
 
     if [[ "${SSH_PORT}" != "22" ]]; then
         if ss -tulpn | grep -q ":${SSH_PORT}\b"; then
-            log_red "Port ${SSH_PORT} is already in use"
+            log_error "Port ${SSH_PORT} is already in use"
             continue
         fi
     fi
@@ -86,27 +63,27 @@ while true; do
         timedatectl set-timezone "${TIMEZONE}"
         break
     else
-        log_red "Invalid timezone: ${TIMEZONE}"
+        log_error "Invalid timezone: ${TIMEZONE}"
     fi
 done
 
 # ─────────────────────────────
 # Install files
 # ─────────────────────────────
-log_green 'Installing files...'
+log_info 'Installing files...'
 rsync_dir /etc/
 rsync_dir /root/
 
 # ─────────────────────────────
 # Apply SSH port to sshd_config
 # ─────────────────────────────
-log_green 'Setting SSH port...'
+log_info 'Setting SSH port...'
 sed -i "s/'SSH_PORT'/${SSH_PORT}/" /etc/ssh/sshd_config
 
 # ─────────────────────────────
 # Install helper scripts
 # ─────────────────────────────
-log_green 'Installing helper scripts...'
+log_info 'Installing helper scripts...'
 echo '#!/bin/sh
 
 if [ $# -eq 0 ]; then
@@ -119,34 +96,34 @@ fi
 # ─────────────────────────────
 # Setup and enable ufw
 # ─────────────────────────────
-log_green 'Setting up ufw...'
+log_info 'Setting up ufw...'
 sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
 ufw allow "${SSH_PORT}"/tcp comment ssh
 
 # ─────────────────────────────
 # Set locale
 # ─────────────────────────────
-log_green 'Setting locale...'
+log_info 'Setting locale...'
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
 # ─────────────────────────────
 # Set timezone
 # ─────────────────────────────
-log_green 'Setting timezone...'
+log_info 'Setting timezone...'
 timedatectl set-timezone "${TIMEZONE}"
 
 # ─────────────────────────────
 # Install shmft
 # ─────────────────────────────
-log_green 'Installing shmft...'
+log_info 'Installing shmft...'
 curl -L https://github.com/mvdan/sh/releases/download/v3.13.0/shfmt_v3.13.0_linux_amd64 -o /usr/local/bin/shfmt
 chmod +x /usr/local/bin/shfmt
 
 # ─────────────────────────────
 # Enable rc-local service and setup
 # ─────────────────────────────
-log_green 'Enabling rc-local service...'
+log_info 'Enabling rc-local service...'
 systemctl enable rc-local.service
 rm -rf /etc/rc.local
 echo '#!/bin/bash
@@ -159,29 +136,24 @@ exit 0
 # ─────────────────────────────
 # Copy scripts
 # ─────────────────────────────
-log_green 'Copying scripts...'
+log_info 'Copying scripts...'
 mkdir -p /scripts
 rsync_dir /scripts/
 
 # ─────────────────────────────
 # Run toolkit scripts
 # ─────────────────────────────
-log_green 'Running toolkit scripts...'
+log_info 'Running toolkit scripts...'
 
-cd ../../toolkit/
+"${TOOLKIT_DIR}/init/disable-motds.sh"
+"${TOOLKIT_DIR}/init/ipv6.sh" -d
+"${TOOLKIT_DIR}/init/setup-locale.sh" -y 'en_US.UTF-8'
+"${TOOLKIT_DIR}/init/setup-timezone.sh" -y 'Asia/Taipei'
 
-cd ./init/
-./disable-motds.sh
-./ipv6.sh -d
-./setup-locale.sh -y 'en_US.UTF-8'
-./setup-timezone.sh -y 'Asia/Taipei'
+"${TOOLKIT_DIR}/install/install-7zip.sh" -y
+"${TOOLKIT_DIR}/install/install-cat-motd.sh" -y
 
-cd ../install/
-./install-7zip.sh -y
-./install-cat-motd.sh -y
-
-cd ../service/
-./thp-tuning.sh --enable
+"${TOOLKIT_DIR}/service/thp-tuning.sh" --enable
 
 # Done
-log_green 'Done, make sure to reboot!'
+log_success 'Done, make sure to reboot!'

@@ -1,13 +1,9 @@
 # linux-configs-and-scripts
 
-# Run bootstrap
+# Run bootstrap for ubuntu 24.04
 
 ```bash
 sudo apt-get update && \
     sudo apt-get install -y curl git && \
-    cd /tmp && \
-    rm -rf ./linux-configs-and-scripts/ && \
-    git clone https://github.com/kiki-kanri/linux-configs-and-scripts.git && \
-    cd ./linux-configs-and-scripts/ && \
-    bash ./bootstrap/setup.sh
+    curl -fsSL https://raw.githubusercontent.com/kiki-kanri/linux-configs-and-scripts/refs/heads/main/bootstrap/ubuntu/setup.sh | sudo bash -
 ```

@@ -14,3 +14,9 @@ find . -type f -exec chmod 600 {} \;
 find . -name '*.bashrc' -exec chmod 700 {} \;
 find . -name '*.profile' -exec chmod 700 {} \;
 find . -name '*.sh' -exec chmod 700 {} \;
+
+chmod 700 -R \
+    ./bootstrap/ubuntu/files/etc/skel \
+    ./bootstrap/ubuntu/files/etc/bash.bashrc \
+    ./bootstrap/ubuntu/files/etc/profile \
+    ./bootstrap/ubuntu/files/root
