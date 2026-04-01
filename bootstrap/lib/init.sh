@@ -61,7 +61,7 @@ _run() {
     if [[ "$DRY_RUN" == "1" ]]; then
         echo -e "${_Y}[bootstrap]${_C} WOULD RUN: $*"
     else
-        "$@"
+        "$@" || true
     fi
 }
 
