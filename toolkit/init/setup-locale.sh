@@ -23,21 +23,19 @@ LOCALE_FILE="/etc/locale.gen"
 LOCALE_GEN="/etc/default/locale"
 
 list_locales() {
-    grep -E "^[^#].*UTF-8" "${LOCALE_FILE}" 2>/dev/null | sed 's/:.*//' | sort
+    grep -E "^#?.*UTF-8" "${LOCALE_FILE}" 2>/dev/null | sed 's/^#//; s/[[:space:]]*//' | sort | uniq
 }
 
 do_setup() {
     local locale="$1"
 
-    if ! grep -q "^${locale}" "${LOCALE_FILE}" 2>/dev/null; then
-        log_error "Locale ${locale} is not available in ${LOCALE_FILE}."
-        log_info "Available UTF-8 locales:"
-        list_locales | column -c 80 | sed 's/^/  /'
+    if ! grep -qE "^#?[[:space:]]*${locale}" "${LOCALE_FILE}" 2>/dev/null; then
+        log_error "Locale ${locale} is not found in ${LOCALE_FILE}."
         return 1
     fi
 
     log_info "Generating locale ${locale}..."
-    sed -i "s/^# \(${locale}\)/\1/" "${LOCALE_FILE}"
+    sed -i "s/^#[[:space:]]*\(${locale}\)/\1/" "${LOCALE_FILE}"
     locale-gen "${locale}" >/dev/null 2>&1
 
     log_info "Setting system default locale..."
@@ -49,15 +47,23 @@ EOF
 
     update-locale LANG="${locale}" LANGUAGE="${locale%%.*}" 2>/dev/null || true
 
-    log_success "Locale set to ${locale}."
-    log_warn "Log out and back in for changes to take full effect."
-    log_info "Current locale: $(locale LANG)"
+    log_success "Locale successfully set to ${locale}."
+    log_warn "Please log out and back in for changes to take full effect."
 }
 
 main() {
     local locale=""
+    local skip_confirm=false
 
-    if [[ $# -gt 0 ]] && [[ -n "$1" ]]; then
+    while getopts "y" opt; do
+        case $opt in
+        y) skip_confirm=true ;;
+        *) ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [[ -n "${1:-}" ]]; then
         locale="$1"
     else
         log_info "Available UTF-8 locales on this system:"
@@ -68,12 +74,17 @@ main() {
     fi
 
     if ! [[ "${locale}" =~ ^.+@?\.?[A-Za-z0-9_]+$ ]]; then
-        log_error "Invalid locale: ${locale}"
+        log_error "Invalid locale format: ${locale}"
         return 1
     fi
 
-    log_info "Current locale: $(locale LANG 2>/dev/null || echo 'not set')"
-    confirm "Set locale to ${locale}?" --default=yes || exit 0
+    log_info "Current system LANG: ${LANG:-not set}"
+
+    if [ "$skip_confirm" = false ]; then
+        confirm "Set locale to ${locale}?" --default=yes || exit 0
+    else
+        log_info "Automatic mode: skipping confirmation."
+    fi
 
     do_setup "${locale}"
 }

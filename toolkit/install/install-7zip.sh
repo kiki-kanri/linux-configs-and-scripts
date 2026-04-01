@@ -97,11 +97,26 @@ do_install() {
 }
 
 main() {
+    local skip_confirm=false
+
+    while getopts 'y' opt; do
+        case $opt in
+        y) skip_confirm=true ;;
+        *) ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
     if [[ -x "${BIN_PATH}" ]]; then
         local installed_version
         installed_version="$("${BIN_PATH}" -v 2>/dev/null | head -1 || echo "unknown")"
         log_info "7-Zip is already installed at ${BIN_PATH} (${installed_version})."
-        confirm "Re-install / upgrade?" --default=no || exit 0
+
+        if [[ "$skip_confirm" == false ]]; then
+            confirm "Re-install / upgrade?" --default=no || exit 0
+        else
+            log_info "Force re-install enabled via -y flag."
+        fi
     fi
 
     do_install

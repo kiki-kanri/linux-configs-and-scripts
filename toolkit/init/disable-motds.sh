@@ -27,7 +27,8 @@ MOTD_SCRIPTS=(
     /etc/update-motd.d/98-reboot-required
 )
 
-disable() {
+# TODO: exit error ?
+main() {
     log_info "Disabling update-motd.d scripts..."
     local disabled=0
     for script in "${MOTD_SCRIPTS[@]}"; do
@@ -55,43 +56,6 @@ disable() {
     fi
 
     log_success "MOTD disabled."
-}
-
-enable() {
-    log_info "Re-enabling update-motd.d scripts..."
-    local enabled=0
-    for script in "${MOTD_SCRIPTS[@]}"; do
-        if [[ -f "${script}" ]]; then
-            chmod +x "${script}" 2>/dev/null || true
-            ((enabled++))
-        fi
-    done
-    log_info "Re-enabled ${enabled} MOTD scripts."
-
-    if command -v systemctl >/dev/null 2>&1; then
-        systemctl unmask serial-getty@ttyS0.service >/dev/null 2>&1 || true
-        systemctl unmask motd-news.service >/dev/null 2>&1 || true
-    fi
-
-    log_success "MOTD re-enabled."
-}
-
-main() {
-    # Check if any MOTD script is still executable
-    local any_enabled=0
-    for script in "${MOTD_SCRIPTS[@]}"; do
-        if [[ -x "${script}" ]]; then
-            any_enabled=1
-            break
-        fi
-    done
-
-    if [[ "${any_enabled}" == "0" ]]; then
-        log_info "MOTD scripts are already disabled."
-        confirm "Re-apply MOTD disable?" --default=no || exit 0
-    fi
-
-    disable
 }
 
 main "$@"
