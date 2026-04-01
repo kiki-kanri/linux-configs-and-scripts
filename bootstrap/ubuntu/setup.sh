@@ -22,7 +22,7 @@ TOOLKIT_DIR="../../toolkit"
 . ./lib.sh
 
 # Install base packages
-"${TOOLKIT_DIR}/install/install-base-packages.sh"
+bash "${TOOLKIT_DIR}/install/install-base-packages.sh"
 
 # Configure
 log_info 'Configuring...'
@@ -144,15 +144,15 @@ rsync_dir /scripts/
 # ─────────────────────────────
 log_info 'Running toolkit scripts...'
 
-"${TOOLKIT_DIR}/init/disable-motds.sh"
-"${TOOLKIT_DIR}/init/ipv6.sh" -d
-"${TOOLKIT_DIR}/init/setup-locale.sh" -y 'en_US.UTF-8'
-"${TOOLKIT_DIR}/init/setup-timezone.sh" -y 'Asia/Taipei'
+bash "${TOOLKIT_DIR}/init/disable-motds.sh"
+bash "${TOOLKIT_DIR}/init/ipv6.sh" -d
+bash "${TOOLKIT_DIR}/init/setup-locale.sh" -y 'en_US.UTF-8'
+bash "${TOOLKIT_DIR}/init/setup-timezone.sh" -y 'Asia/Taipei'
 
-"${TOOLKIT_DIR}/install/install-7zip.sh" -y
-"${TOOLKIT_DIR}/install/install-cat-motd.sh" -y
+bash "${TOOLKIT_DIR}/install/install-7zip.sh" -y
+bash "${TOOLKIT_DIR}/install/install-cat-motd.sh" -y
 
-"${TOOLKIT_DIR}/service/thp-tuning.sh" --enable
+bash "${TOOLKIT_DIR}/service/thp-tuning.sh" --enable
 
 # Done
 log_success 'Done, make sure to reboot!'
