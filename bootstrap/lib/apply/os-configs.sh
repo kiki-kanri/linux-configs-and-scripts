@@ -54,8 +54,8 @@ _apply_config_file() {
 apply_os_configs() {
   _check_os_id || return 1
 
-  local shared_dir="$CONF_DIR/shared"
-  local os_conf_dir="$CONF_DIR/$OS_ID"
+  local shared_dir="$BOOTSTRAP_CONF_DIR/shared"
+  local os_conf_dir="$BOOTSTRAP_CONF_DIR/$OS_ID"
 
   # associative array: dest → src
   declare -A file_map

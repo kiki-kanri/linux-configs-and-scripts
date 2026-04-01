@@ -19,7 +19,7 @@ set -Eeuo pipefail
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 show_help() {
-  cat <<'EOF'
+    cat <<'EOF'
 bootstrap/setup.sh — Linux system bootstrap
 
 USAGE
@@ -60,53 +60,53 @@ LOCALE="${LOCALE:-en_US.UTF-8}"
 HOSTNAME="${HOSTNAME:-}"
 
 for arg in "$@"; do
-  case "$arg" in
+    case "$arg" in
     --dry-run) DRY_RUN=1 ;;
-    --help|-h) show_help; exit 0 ;;
+    --help | -h)
+        show_help
+        exit 0
+        ;;
     *) ;;
-  esac
+    esac
 done
 
 export DRY_RUN SSH_PORT TIMEZONE LOCALE HOSTNAME
 
 # ── OS detection ──────────────────────────────────────────────────────────────
 detect_os() {
-  if [[ -f /etc/os-release ]]; then
-    . /etc/os-release
-    echo "${ID}-${VERSION_ID}"
-  else
-    echo "unknown"
-  fi
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        echo "${ID}-${VERSION_ID}"
+    else
+        echo "unknown"
+    fi
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
-  local os
-  os="$(detect_os)"
-  local runner
+    local os
+    os="$(detect_os)"
+    local runner
 
-  # Reset per-run env so each runner gets a clean state
-  export DRY_RUN SSH_PORT TIMEZONE LOCALE HOSTNAME
+    # Reset per-run env so each runner gets a clean state
+    export DRY_RUN SSH_PORT TIMEZONE LOCALE HOSTNAME
 
-  case "$os" in
-    debian-*)
-      runner="$(dirname "${BASH_SOURCE[0]}")/runners/debian.sh"
-      ;;
+    case "$os" in
     ubuntu-*)
-      runner="$(dirname "${BASH_SOURCE[0]}")/runners/ubuntu.sh"
-      ;;
+        runner="$(dirname "${BASH_SOURCE[0]}")/runners/ubuntu.sh"
+        ;;
     *)
-      echo "[bootstrap] ERROR: Unsupported OS: $os" >&2
-      echo "[bootstrap] Supported: Debian, Ubuntu" >&2
-      exit 1
-      ;;
-  esac
+        echo "[bootstrap] ERROR: Unsupported OS: $os" >&2
+        echo "[bootstrap] Supported: Ubuntu" >&2
+        exit 1
+        ;;
+    esac
 
-  if [[ ! -x "$runner" ]]; then
-    chmod +x "$runner"
-  fi
+    if [[ ! -x "$runner" ]]; then
+        chmod +x "$runner"
+    fi
 
-  exec "$runner" "$@"
+    exec "$runner" "$@"
 }
 
 main "$@"

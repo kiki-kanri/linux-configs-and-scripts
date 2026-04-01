@@ -4,7 +4,7 @@ set -Eeuo pipefail
 [[ -z "${_BOOTSTRAP_INIT_SOURCED:-}" ]] && echo "Must source init.sh first" >&2 && exit 1
 
 apply_motd() {
-    local src="$CONF_DIR/motd.conf"
+    local src="$BOOTSTRAP_CONF_DIR/motd.conf"
     local dest="/etc/update-motd.d/9999-linux-configs"
 
     if [[ ! -f "$src" ]]; then
