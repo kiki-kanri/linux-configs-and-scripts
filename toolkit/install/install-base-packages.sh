@@ -1,5 +1,4 @@
 #!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
 # install-base-packages.sh — Install base packages
 
 set -Eeuo pipefail
@@ -14,9 +13,13 @@ done
 
 require_root
 
-log_info "Installing base packages..."
+log_info "Updating package index..."
 apt-get update
+
+log_info "Upgrading packages..."
 apt-get upgrade -y
+
+log_info "Installing base packages..."
 apt-get install -y --no-install-recommends \
     bash-completion \
     bsdmainutils \
@@ -31,6 +34,11 @@ apt-get install -y --no-install-recommends \
     net-tools \
     nmap \
     rsync \
+    git \
+    jq \
+    netcat-openbsd \
+    psmisc \
+    software-properties-common \
     tcpdump \
     tmux \
     tree \
@@ -43,5 +51,7 @@ apt-get install -y --no-install-recommends \
     tar \
     wget
 
+log_info "Removing open-vm-tools..."
 apt-get remove -y --auto-remove --purge open-vm-tools
+
 log_success "Base packages installed"

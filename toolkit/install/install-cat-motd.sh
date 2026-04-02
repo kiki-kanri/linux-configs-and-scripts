@@ -1,8 +1,5 @@
 #!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
 # install-cat-motd.sh — Install the cat MOTD banner script
-#
-# Copies conf/update-motd.d/9999-cat to /etc/update-motd.d/ and sets permissions.
 
 set -Eeuo pipefail
 
@@ -19,64 +16,12 @@ require_root
 SRC="${SCRIPT_DIR}/../conf/update-motd.d/9999-cat"
 DEST="/etc/update-motd.d/9999-cat"
 
-do_install() {
-    if [[ ! -f "${SRC}" ]]; then
-        log_error "Source file not found: ${SRC}"
-        exit 1
-    fi
+if [[ ! -f "${SRC}" ]]; then
+    log_error "Source file not found: ${SRC}"
+    exit 1
+fi
 
-    log_info "Installing cat MOTD script..."
-    cp -f "${SRC}" "${DEST}"
-    chmod 755 "${DEST}"
-    log_success "Installed: ${DEST}"
-}
-
-do_uninstall() {
-    if [[ ! -f "${DEST}" ]]; then
-        log_info "cat MOTD script is not installed."
-        return 0
-    fi
-    log_info "Removing cat MOTD script..."
-    rm -f "${DEST}"
-    log_success "Removed: ${DEST}"
-}
-
-main() {
-    local action=""
-
-    local skip_confirm=false
-
-    while getopts 'yu'h opt; do
-        case ${opt} in
-        y) skip_confirm=true ;;
-        u)
-            action="uninstall"
-            return 0
-            ;;
-        h)
-            echo "Usage: $0 [-y|--uninstall]"
-            exit 0
-            ;;
-        *) exit 1 ;;
-        esac
-    done
-    shift $((OPTIND - 1))
-
-    if [[ -f "${DEST}" ]]; then
-        log_info "cat MOTD script is already installed."
-        if [[ "${skip_confirm}" == true ]]; then
-            action="install"
-        else
-            confirm "Reinstall?" --default=no && action="install" || exit 0
-        fi
-    else
-        action="install"
-    fi
-
-    case "${action}" in
-    install) do_install ;;
-    uninstall) do_uninstall ;;
-    esac
-}
-
-main "$@"
+log_info "Installing cat MOTD script..."
+cp -f "${SRC}" "${DEST}"
+chmod 755 "${DEST}"
+log_success "Installed: ${DEST}"
