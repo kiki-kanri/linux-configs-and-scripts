@@ -53,10 +53,6 @@ DEVELOP_PACKAGES=(
     llvm
     ninja-build
     zlib1g-dev
-    g++
-    gcc
-    pkg-config
-    wget
 )
 
 RUNTIME_PACKAGES=(
@@ -351,12 +347,13 @@ main() {
             log_info "Existing backup found, rotating to ${NGINX_BAK}.${bak_ts}..."
             mv "${NGINX_BAK}" "${NGINX_BAK}.${bak_ts}"
         fi
+
         cp -frp /etc/nginx "${NGINX_BAK}"
     fi
 
     log_info "Installing build dependencies..."
     apt-get update
-    apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" git
+    apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" g++ gcc git pkg-config wget
 
     rm -rf "${TMP_DIR}"
     preflight
@@ -365,9 +362,9 @@ main() {
     build_nginx
 
     # Install runtime deps and remove build deps
-    log_info "Installing runtime dependencies..."
+    log_info "Removing build dependencies and installing runtime dependencies..."
+    apt-get remove --auto-remove --purge "${DEVELOP_PACKAGES[@]}" 2>/dev/null || true
     apt-get install -y "${RUNTIME_PACKAGES[@]}"
-    apt-get remove --auto-remove -y "${DEVELOP_PACKAGES[@]}" 2>/dev/null || true
 
     post_install "${is_upgrade}"
 
