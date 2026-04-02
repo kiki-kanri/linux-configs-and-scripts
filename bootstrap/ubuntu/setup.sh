@@ -4,13 +4,13 @@ set -euo pipefail
 
 # ── bootstrap ─────────────────────────────────────────────────────────────────
 cd /tmp
-log_info 'Cloning linux-configs-and-scripts...'
+echo 'Cloning linux-configs-and-scripts...'
 apt-get update
 apt-get install -y git
 rm -rf ./linux-configs-and-scripts/
 git clone https://github.com/kiki-kanri/linux-configs-and-scripts
 cd ./linux-configs-and-scripts/
-log_info 'Fixing file permissions...'
+echo 'Fixing file permissions...'
 ./modify-files-permissions.sh
 cd ./bootstrap/ubuntu/
 
