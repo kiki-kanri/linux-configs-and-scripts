@@ -6,7 +6,7 @@
 #   setup-timezone.sh [-y] [timezone]   # e.g. -y Asia/Taipei
 #   setup-timezone.sh                   # interactive mode
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

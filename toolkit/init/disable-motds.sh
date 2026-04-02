@@ -2,7 +2,7 @@
 # -*- mode: bash; tab-size: 4; -*-
 # disable-motds.sh — Disable MOTD (Message of the Day) login banners
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,7 +14,8 @@ done
 
 require_root
 
-chmod -x /etc/update-motd.d/00-header \
+for f in \
+    /etc/update-motd.d/00-header \
     /etc/update-motd.d/10-help-text \
     /etc/update-motd.d/50-landscape-sysinfo \
     /etc/update-motd.d/50-motd-news \
@@ -22,4 +23,6 @@ chmod -x /etc/update-motd.d/00-header \
     /etc/update-motd.d/90-updates-available \
     /etc/update-motd.d/91-apt-dracles \
     /etc/update-motd.d/95-hwe-eol \
-    /etc/update-motd.d/98-reboot-required
+    /etc/update-motd.d/98-reboot-required; do
+    chmod -x "$f" 2>/dev/null || true
+done

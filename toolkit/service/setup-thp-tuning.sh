@@ -4,7 +4,7 @@
 # Sets THP to "madvise" mode and installs a systemd oneshot service for boot persistence.
 # Applies immediately (no reboot required).
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -6,7 +6,7 @@
 #   setup-locale.sh [locale]    # e.g. en_US.UTF-8, zh_TW.UTF-8
 #   setup-locale.sh             # interactive mode
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

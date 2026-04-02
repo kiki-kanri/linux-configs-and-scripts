@@ -168,7 +168,7 @@ log_info()  { echo -e "[\033[34m${SCRIPT_NAME}\033[0m] \033[34mINFO:\033[0m  $*"
 ```bash
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

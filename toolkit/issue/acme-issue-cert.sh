@@ -11,7 +11,7 @@
 #   Cloudflare: export CF_Token, CF_Account_ID, CF_Zone_ID, then --dns cloudflare
 #   Other providers: see acme.sh wiki for --dns dns_<provider>
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

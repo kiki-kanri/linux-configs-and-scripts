@@ -5,7 +5,7 @@
 # Supports: Debian, Ubuntu
 # Packages include common extensions for web development.
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

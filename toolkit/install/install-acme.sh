@@ -8,7 +8,7 @@
 # Supports both root and non-root installation.
 # Re-running wipes ~/.acme.sh and re-installs from scratch.
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

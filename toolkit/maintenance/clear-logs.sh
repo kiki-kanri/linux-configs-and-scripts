@@ -5,7 +5,7 @@
 # Removes rotated/compressed logs older than ${DAYS} days.
 # Targets: *.gz, *.[0-9], *.[0-9].gz, old, timestamped logs.
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

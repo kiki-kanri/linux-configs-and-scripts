@@ -1,7 +1,7 @@
 #!/bin/bash
 # install-7zip.sh — Install 7-Zip (7zz/7zzs) from 7-zip.org
 
-set -Eeuo pipefail
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
