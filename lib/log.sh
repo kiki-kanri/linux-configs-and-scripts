@@ -21,7 +21,7 @@ _colorize() {
 log_info() {
     local msg="[${SCRIPT_NAME:-script}] INFO:  $*"
     local colored
-    colored="$(printf '\033[34m%s\033[0m' "${msg}")"
+    colored="$(printf '\033[36m%s\033[0m' "${msg}")"
     _colorize "${colored}" "${msg}"
 }
 

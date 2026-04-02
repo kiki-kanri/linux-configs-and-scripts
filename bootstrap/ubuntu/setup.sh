@@ -4,11 +4,13 @@ set -euo pipefail
 
 # ── bootstrap ─────────────────────────────────────────────────────────────────
 cd /tmp
+log_info 'Cloning linux-configs-and-scripts...'
 apt-get update
 apt-get install -y git
 rm -rf ./linux-configs-and-scripts/
 git clone https://github.com/kiki-kanri/linux-configs-and-scripts
 cd ./linux-configs-and-scripts/
+log_info 'Fixing file permissions...'
 ./modify-files-permissions.sh
 cd ./bootstrap/ubuntu/
 
@@ -64,6 +66,7 @@ log_info 'Installing config files...'
 rsync_dir /etc/
 rsync_dir /root/
 
+log_info "Setting SSH port to ${SSH_PORT}..."
 sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
 
 # ── helper scripts ─────────────────────────────────────────────────────────────
@@ -81,6 +84,7 @@ fi
 log_info 'Setting up ufw...'
 sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
 ufw allow "${SSH_PORT}"/tcp comment ssh
+log_success 'Ufw setup complete. Enable it with: ufw enable.'
 
 # ── locale ─────────────────────────────────────────────────────────────────────
 log_info 'Setting locale...'

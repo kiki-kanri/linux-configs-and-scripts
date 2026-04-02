@@ -62,13 +62,23 @@ if filereadable("/etc/vim/vimrc.local")
   source /etc/vim/vimrc.local
 endif
 
-" Indent
-set autoindent
-set smartindent
-set expandtab
-set shiftwidth=4
-set tabstop=4
+" --- Base theme and display ---
+set cursorline
+set termguicolors
+
+" --- Indent ---
+set expandtab               " 將 Tab 轉為空格
+set tabstop=4               " Tab 佔 4 個空格
+set shiftwidth=4            " 自動縮排佔 4 個空格
 set softtabstop=4
+set autoindent              " 自動對齊下一行
+set smartindent
 set smarttab
 set nowrap
 set scrolloff=5
+
+" --- Search ---
+set hlsearch
+
+" --- Others ---
+set encoding=utf-8
