@@ -112,7 +112,7 @@ rsync_dir /scripts/
 log_info 'Running toolkit scripts...'
 
 "${TOOLKIT_DIR}/init/disable-motds.sh"
-"${TOOLKIT_DIR}/init/ipv6.sh"
+"${TOOLKIT_DIR}/init/disable-ipv6.sh"
 "${TOOLKIT_DIR}/init/setup-locale.sh" -y 'en_US.UTF-8'
 "${TOOLKIT_DIR}/init/setup-timezone.sh" -y 'Asia/Taipei'
 
