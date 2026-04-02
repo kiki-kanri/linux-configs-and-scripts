@@ -1,4 +1,5 @@
 #!/bin/bash
+# -*- mode: bash; tab-size: 4; -*-
 # disable-ipv6.sh — Disable IPv6 on the system
 
 set -euo pipefail

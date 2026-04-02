@@ -1,3 +1,4 @@
+#!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
 # require-cmd.sh — Check that one or more required commands exist
 #

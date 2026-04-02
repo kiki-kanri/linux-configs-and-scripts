@@ -1,3 +1,4 @@
+#!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
 # confirm.sh — Interactive yes/no confirmation prompt
 #

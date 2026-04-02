@@ -1,3 +1,4 @@
+#!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
 # os.sh — OS and version detection for linux-configs-and-scripts
 #

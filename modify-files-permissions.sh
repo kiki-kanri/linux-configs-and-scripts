@@ -1,9 +1,15 @@
 #!/bin/bash
+# -*- mode: bash; tab-size: 4; -*-
+# modify-files-permissions.sh — Fix file permissions for linux-configs-and-scripts
+#
+# Sets restrictive permissions (600 for files, 700 for dirs) and configures
+# git filemode before git clone. Run this before anything else in bootstrap.
 
-set -e
+set -euo pipefail
 
-SCRIPTS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-cd "${SCRIPTS_DIR}"
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 
 set +e
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# -*- mode: bash; tab-size: 4; -*-
 # install-7zip.sh — Install 7-Zip (7zz/7zzs) from 7-zip.org
 
 set -euo pipefail

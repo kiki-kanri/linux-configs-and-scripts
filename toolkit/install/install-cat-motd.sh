@@ -1,4 +1,5 @@
 #!/bin/bash
+# -*- mode: bash; tab-size: 4; -*-
 # install-cat-motd.sh — Install the cat MOTD banner script
 
 set -euo pipefail

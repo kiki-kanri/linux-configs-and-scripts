@@ -1,3 +1,4 @@
+#!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
 # log.sh — Logging utilities for linux-configs-and-scripts
 #

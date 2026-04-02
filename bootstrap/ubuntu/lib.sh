@@ -1,4 +1,6 @@
 #!/bin/bash
+# -*- mode: bash; tab-size: 4; -*-
+# lib.sh — Ubuntu bootstrap helper library (sourced by setup.sh)
 
 set -euo pipefail
 

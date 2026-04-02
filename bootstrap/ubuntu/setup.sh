@@ -1,4 +1,9 @@
 #!/bin/bash
+# -*- mode: bash; tab-size: 4; -*-
+# setup.sh — Bootstrap Ubuntu server with linux-configs-and-scripts
+#
+# Clones the repo, fixes permissions, installs base packages, configures system
+# (SSH port, timezone, locale, UFW, MOTD), and runs toolkit scripts.
 
 set -euo pipefail
 

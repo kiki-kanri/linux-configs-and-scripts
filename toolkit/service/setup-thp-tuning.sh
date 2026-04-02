@@ -1,4 +1,5 @@
 #!/bin/bash
+# -*- mode: bash; tab-size: 4; -*-
 # setup-thp-tuning.sh — Configure Transparent Huge Pages (THP) for database workloads
 #
 # Sets THP to "madvise" mode and installs a systemd oneshot service for boot persistence.

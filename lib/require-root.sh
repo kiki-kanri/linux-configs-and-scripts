@@ -1,3 +1,4 @@
+#!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
 # require-root.sh — Check that the script is running as root
 

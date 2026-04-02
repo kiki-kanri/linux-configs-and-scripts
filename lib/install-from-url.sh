@@ -1,3 +1,4 @@
+#!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
 # install-from-url.sh — Download a binary and install it to a path
 #
@@ -13,6 +14,12 @@
 # If a file <SCRIPT_DIR>/<name>.sha256 exists, it will be used.
 #
 # Requires: curl, sha256sum (optional for verification)
+
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../../lib"
+
+source "${LIB_DIR}/log.sh"
 
 _install_from_url() {
     local url="$1"

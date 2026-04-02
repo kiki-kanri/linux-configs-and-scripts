@@ -1,3 +1,4 @@
+#!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
 # arch.sh — Architecture detection for linux-configs-and-scripts
 #
