@@ -4,7 +4,7 @@
 #
 # Builds:
 #   - QuicTLS (OpenSSL 3.3.0 + QUIC) as the SSL library
-#   - nginx 1.28.3 with HTTP/3, Brotli, GeoIP2, headers-more, zstd
+#   - nginx 1.30.0 with HTTP/3, Brotli, GeoIP2, headers-more, zstd
 #
 # Optimizations:
 #   - Clang + thin LTO (Link-Time Optimization)
@@ -30,7 +30,7 @@ require_root
 #             clang  for nginx (thin LTO, LINK=clang++)
 
 # ── Versions ───────────────────────────────────────────────────
-NGINX_VERSION="1.28.3"
+NGINX_VERSION="1.30.0"
 # Default branch already has QUIC support — no tag needed
 
 # ── Paths ──────────────────────────────────────────────────────
