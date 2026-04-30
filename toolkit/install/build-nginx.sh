@@ -47,7 +47,7 @@ DEVELOP_PACKAGES=(
     libbrotli-dev
     libgeoip-dev
     libmaxminddb-dev
-    libpcre3-dev
+    libpcre2-dev
     libzstd-dev
     lld
     llvm
@@ -61,7 +61,7 @@ RUNTIME_PACKAGES=(
     libbrotli1
     libgeoip1
     libmaxminddb0
-    libpcre3
+    libpcre2-8-0
     libzstd1
     zlib1g
 )
