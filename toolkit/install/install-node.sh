@@ -18,7 +18,7 @@ done
 require_root
 require_cmd curl
 
-NODE_VERSION="24.x"
+NODE_VERSION="26.x"
 NODESOURCE_SETUP_URL="https://deb.nodesource.com/setup_${NODE_VERSION}"
 CRON_SRC="${SCRIPT_DIR}/../conf/cron.daily/npm-upgrade"
 CRON_DEST="/etc/cron.daily/npm-upgrade"
