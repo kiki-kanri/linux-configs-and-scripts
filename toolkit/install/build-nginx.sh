@@ -353,7 +353,7 @@ main() {
 
     log_info "Installing build dependencies..."
     apt-get update
-    apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" g++ gcc git pkg-config wget
+    apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" g++ gcc git make pkg-config wget
 
     rm -rf "${TMP_DIR}"
     preflight
