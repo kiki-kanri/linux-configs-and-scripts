@@ -70,9 +70,29 @@ done
 log_info 'Installing config files...'
 rsync_dir /etc/
 rsync_dir /root/
+chmod 644 /etc/bash.bashrc /etc/profile
 
 log_info "Setting SSH port to ${SSH_PORT}..."
 sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
+
+# ── sync home directories ─────────────────────────────────────────────────────
+log_info 'Syncing /etc/skel to existing home directories...'
+
+for user_dir in /home/*; do
+    if [ -d "${user_dir}" ] && [ "$(basename "${user_dir}")" != "lost+found" ]; then
+        user_name=$(basename "${user_dir}")
+        rsync -av /etc/skel/ "${user_dir}/"
+        chown -R "${user_name}":"${user_name}" "${user_dir}"
+        chmod 600 "${user_dir}/.bashrc"
+        chmod 600 "${user_dir}/.profile"
+        if [ -d "${user_dir}/.ssh" ]; then
+            chmod 700 "${user_dir}/.ssh"
+            chmod 600 "${user_dir}/.ssh/"* 2>/dev/null || true
+        fi
+    fi
+done
+
+log_info 'Home directories sync complete.'
 
 # ── helper scripts ─────────────────────────────────────────────────────────────
 log_info 'Installing helper scripts...'
