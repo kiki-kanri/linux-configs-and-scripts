@@ -30,7 +30,7 @@ require_root
 #             clang  for nginx (thin LTO, LINK=clang++)
 
 # ── Versions ───────────────────────────────────────────────────
-NGINX_VERSION="1.30.0"
+NGINX_VERSION="1.30.1"
 # Default branch already has QUIC support — no tag needed
 
 # ── Paths ──────────────────────────────────────────────────────
