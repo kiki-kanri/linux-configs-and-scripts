@@ -13,6 +13,8 @@ base_packages=(
     bsdmainutils
     ca-certificates
     cron
+    dnsutils
+    fail2ban
     git
     htop
     iftop
@@ -20,12 +22,15 @@ base_packages=(
     iputils-ping
     jq
     locales
+    logrotate
     lsd
     lsof
+    ncdu
     net-tools
     netcat-openbsd
     nmap
     psmisc
+    ripgrep
     rsync
     screen
     software-properties-common

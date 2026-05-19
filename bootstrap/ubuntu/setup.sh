@@ -35,19 +35,6 @@ printf '[setup-ubuntu] INFO: Fixing file permissions...\n'
 source "${WORK_DIR}/libs/common.sh"
 
 # Functions
-install_ldu() {
-    cat >/usr/local/bin/ldu <<'SCRIPT'
-#!/bin/sh
-if [ $# -eq 0 ]; then
-    du -had1 . | sort -h | column -t
-else
-    du -had1 "$@" | sort -h | column -t
-fi
-SCRIPT
-
-    chmod 755 /usr/local/bin/ldu
-}
-
 install_rc_local() {
     systemctl enable rc-local.service
     cat >/etc/rc.local <<'SCRIPT'
@@ -171,7 +158,7 @@ sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
 sync_home_dirs
 
 log_info "Installing helper scripts..."
-install_ldu
+"${TOOLKIT_DIR}/install/install-ldu.sh"
 
 log_info "Setting up ufw..."
 sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
