@@ -8,6 +8,7 @@ set -euo pipefail
 REPO_URL="https://github.com/kiki-kanri/linux-configs-and-scripts"
 WORK_DIR="/tmp/linux-configs-and-scripts"
 BOOTSTRAP_DIR="${WORK_DIR}/bootstrap/ubuntu"
+SCRIPTS_REPO_DIR="/scripts/linux-configs-and-scripts"
 SHFMT_VERSION="3.13.1"
 SSH_PORT=""
 TOOLKIT_DIR="${WORK_DIR}/toolkit"
@@ -202,9 +203,8 @@ log_info "Running toolkit scripts..."
 
 log_info "Cloning linux-configs-and-scripts to ${SCRIPTS_REPO_DIR}..."
 install -d -m 755 /scripts
-cd /scripts
 rm -rf "${SCRIPTS_REPO_DIR}"
-git clone "${REPO_URL}"
+git clone "${REPO_URL}" "${SCRIPTS_REPO_DIR}"
 "${SCRIPTS_REPO_DIR}/modify-files-permissions.sh"
 
 log_success "Bootstrap complete. Reboot is recommended."
