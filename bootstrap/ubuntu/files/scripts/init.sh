@@ -1,13 +1,16 @@
 #!/bin/bash
+# Set hostname and grow root disk space.
 
 set -euo pipefail
 
-SCRIPTS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-cd "${SCRIPTS_DIR}"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 
-# Set hostname
-read -rp "Enter hostname: " HOSTNAME
-hostnamectl set-hostname "${HOSTNAME}"
+hostname=""
+while [[ -z "${hostname}" ]]; do
+    read -r -p "Enter hostname: " hostname </dev/tty
+    hostname="${hostname//[[:space:]]/}"
+done
 
-# Expand hard drive
+hostnamectl set-hostname "${hostname}"
 ./expand-disk-space.sh

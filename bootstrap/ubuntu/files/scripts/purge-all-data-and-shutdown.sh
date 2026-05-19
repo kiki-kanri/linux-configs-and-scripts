@@ -1,7 +1,8 @@
 #!/bin/bash
 
 ## Remove and clean packages
-apt-get remove --auto-remove --purge $(dpkg --list | grep 'linux-image-[0-9]' | grep -v "$(uname -r)" | awk '{ print $2 }')
+mapfile -t old_kernels < <(dpkg --list | awk -v current="$(uname -r)" '$2 ~ /^linux-image-[0-9]/ && $2 !~ current { print $2 }')
+((${#old_kernels[@]} == 0)) || apt-get remove --auto-remove --purge "${old_kernels[@]}"
 apt-get autoremove -y --purge
 apt-get autoclean
 apt-get clean
