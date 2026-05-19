@@ -1,166 +1,159 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# acme-issue-cert.sh — Issue and install an ECC SSL certificate via acme.sh (DNS-01 only)
-#
-# Usage:
-#   acme-issue-cert.sh --domain example.com --dns cloudflare
-#   acme-issue-cert.sh --domain example.com --dns clouddns \
-#       --cert-dir /etc/nginx/certs --reload-cmd "systemctl reload nginx"
-#
-# DNS-01 challenge (no port required, recommended for wildcard):
-#   Cloudflare: export CF_Token, CF_Account_ID, CF_Zone_ID, then --dns cloudflare
-#   Other providers: see acme.sh wiki for --dns dns_<provider>
+# Issue and install a wildcard ECC certificate with root-managed acme.sh.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
-done
-
-# ── Default values ────────────────────────────────────────────
 DOMAIN=""
 CERT_DIR="/etc/nginx/certs"
 RELOAD_CMD="systemctl reload nginx"
-DNS_MODE="" # e.g. "dns_cf" (cloudflare), "dns_clouddns" (tencent), etc.
-FORCE_FLAG=""
+DNS_PROVIDER="cloudflare"
+FORCE=false
+ACME_BIN="${HOME}/.acme.sh/acme.sh"
 
-# ── Argument parsing ───────────────────────────────────────────
-parse_args() {
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-        --domain)
-            DOMAIN="$2"
-            shift 2
-            ;;
-        --cert-dir)
-            CERT_DIR="$2"
-            shift 2
-            ;;
-        --reload-cmd)
-            RELOAD_CMD="$2"
-            shift 2
-            ;;
-        --dns)
-            case "$2" in
-            cloudflare) DNS_MODE="dns_cf" ;;
-            *) DNS_MODE="dns_$2" ;;
-            esac
-            shift 2
-            ;;
-        --force | -f)
-            FORCE_FLAG="--force"
-            shift
-            ;;
-        --help | -h)
-            show_help
-            exit 0
-            ;;
-        *)
-            log_error "Unknown argument: $1 (use --help)"
-            exit 1
-            ;;
-        esac
-    done
+need_arg() {
+    [[ -n "${2:-}" ]] || {
+        log_error "$1 requires a value."
+        exit 1
+    }
 }
 
-show_help() {
-    cat <<'EOF'
-Usage: acme-issue-cert.sh [options]
+normalize_dns_provider() {
+    local provider="$1"
 
-Options:
-  --domain DOMAIN       Domain to issue certificate for (required)
-  --cert-dir PATH       Directory to store certificates [default: /etc/nginx/certs]
-  --reload-cmd CMD      Command to reload service after renewal [default: systemctl reload nginx]
-  --dns PROVIDER        DNS provider for DNS-01 challenge (e.g. cloudflare, clouddns)
-                        Required env vars per provider: see acme.sh wiki
-                        Cloudflare: CF_Token, CF_Account_ID, CF_Zone_ID
-  --force, -f           Force re-issuance even if a valid cert already exists (acme.sh --force)
-
-Examples:
-  # Cloudflare DNS-01
-  export CF_Token=*** CF_Account_ID=id CF_Zone_ID=zone_id
-  acme-issue-cert.sh -d example.com --dns cloudflare
-EOF
-}
-
-# ── Parse arguments ───────────────────────────────────────────
-parse_args "$@"
-
-# ── Validation ───────────────────────────────────────────────
-if [[ -z "${DOMAIN}" ]]; then
-    log_error "--domain is required. (use --help for usage)"
-    exit 1
-fi
-
-if [[ -z "${DNS_MODE}" ]]; then
-    log_error "--dns is required. (e.g. --dns cloudflare)"
-    exit 1
-fi
-
-# ── DNS mode setup ────────────────────────────────────────────
-if [[ -n "${DNS_MODE}" ]]; then
-    case "${DNS_MODE}" in
-    dns_cf)
-        if [[ -z "${CF_Token:-}" ]] || [[ -z "${CF_Account_ID:-}" ]] || [[ -z "${CF_Zone_ID:-}" ]]; then
-            log_error "Cloudflare DNS selected but CF_Token, CF_Account_ID, or CF_Zone_ID is not set."
-            log_error "Export them before running:"
-            log_error "  export CF_Token='your_token'"
-            log_error "  export CF_Account_ID='your_account_id'"
-            log_error "  export CF_Zone_ID='your_zone_id'"
-            exit 1
-        fi
-        export CF_Token CF_Account_ID CF_Zone_ID
+    case "${provider}" in
+    cloudflare | cf | dns_cf)
+        printf 'dns_cf\n'
+        ;;
+    dns_*)
+        printf '%s\n' "${provider}"
         ;;
     *)
-        log_error "Unknown DNS provider: ${DNS_MODE}. Edit script or use --dns cloudflare."
-        exit 1
+        printf 'dns_%s\n' "${provider}"
         ;;
     esac
-fi
+}
 
-# ── Check acme.sh ─────────────────────────────────────────────
-ACMEBIN="${HOME}/.acme.sh/acme.sh"
-if [[ ! -x "${ACMEBIN}" ]]; then
-    log_error "acme.sh not found at ${ACMEBIN}"
-    log_error "Run install-acme.sh first."
+validate_domain() {
+    local domain="$1"
+
+    [[ -n "${domain}" ]] || return 1
+    [[ "${domain}" != *'*'* ]] || return 1
+    [[ "${domain}" != *'/'* ]] || return 1
+    [[ "${domain}" != *[[:space:]]* ]] || return 1
+    [[ "${domain}" == *.* ]] || return 1
+}
+
+require_cloudflare_env() {
+    local missing=()
+
+    [[ -n "${CF_Token:-}" ]] || missing+=(CF_Token)
+    [[ -n "${CF_Account_ID:-}" ]] || missing+=(CF_Account_ID)
+    [[ -n "${CF_Zone_ID:-}" ]] || missing+=(CF_Zone_ID)
+
+    ((${#missing[@]} == 0)) || {
+        log_error "Cloudflare DNS requires: ${missing[*]}"
+        log_error "Export them and run with sudo -E, or pass them after sudo."
+        exit 1
+    }
+
+    export CF_Token CF_Account_ID CF_Zone_ID
+}
+
+while (($# > 0)); do
+    case "$1" in
+    -d)
+        need_arg "$1" "${2:-}"
+        DOMAIN="$2"
+        shift 2
+        ;;
+    -p)
+        need_arg "$1" "${2:-}"
+        DNS_PROVIDER="$2"
+        shift 2
+        ;;
+    -c)
+        need_arg "$1" "${2:-}"
+        CERT_DIR="$2"
+        shift 2
+        ;;
+    -r)
+        need_arg "$1" "${2:-}"
+        RELOAD_CMD="$2"
+        shift 2
+        ;;
+    -f)
+        FORCE=true
+        shift
+        ;;
+    -*)
+        log_error "Unknown option: $1"
+        exit 1
+        ;;
+    *)
+        if [[ -n "${DOMAIN}" ]]; then
+            log_error "Unexpected extra argument: $1"
+            exit 1
+        fi
+        DOMAIN="$1"
+        shift
+        ;;
+    esac
+done
+
+if ! validate_domain "${DOMAIN}"; then
+    log_error "Invalid or missing domain: ${DOMAIN:-empty}"
+    log_error "Usage: ${0##*/} [-f] [-p provider] [-c cert_dir] [-r reload_cmd] -d example.com"
     exit 1
 fi
 
-# ── Certificate directory ─────────────────────────────────────
-ECC_DIR="${CERT_DIR}/${DOMAIN}/ecc"
-mkdir -p "${ECC_DIR}"
+require_root
+require_cmd chmod install mkdir
 
-# ── Issue ECC-384 certificate ────────────────────────────────
-ISSUE_CMD=(
-    "${ACMEBIN}" --issue
+DNS_MODE="$(normalize_dns_provider "${DNS_PROVIDER}")"
+if [[ "${DNS_MODE}" == "dns_cf" ]]; then
+    require_cloudflare_env
+else
+    log_warn "Using acme.sh DNS provider: ${DNS_MODE}. Make sure its required env vars are set."
+fi
+
+[[ -x "${ACME_BIN}" ]] || {
+    log_error "acme.sh not found: ${ACME_BIN}"
+    log_error "Install it first with toolkit/install/install-acme.sh."
+    exit 1
+}
+
+ECC_DIR="${CERT_DIR%/}/${DOMAIN}/ecc"
+install -d -m 700 "${ECC_DIR}"
+
+issue_cmd=(
+    "${ACME_BIN}" --issue
     -d "${DOMAIN}"
     -d "*.${DOMAIN}"
     --dns "${DNS_MODE}"
     --keylength ec-384
     --server letsencrypt
-    ${FORCE_FLAG}
 )
 
-log_info "Issuing ECC-384 certificate for ${DOMAIN}..."
-log_info "Command: ${ISSUE_CMD[*]}"
+[[ "${FORCE}" == false ]] || issue_cmd+=(--force)
 
-if ! "${ISSUE_CMD[@]}"; then
+log_info "Issuing ECC-384 certificate for ${DOMAIN} and *.${DOMAIN}..."
+log_info "DNS provider: ${DNS_MODE}"
+
+if ! "${issue_cmd[@]}"; then
     log_error "Certificate issuance failed."
     if [[ "${DNS_MODE}" == "dns_cf" ]]; then
-        log_error "Check that CF_Token has Zone:DNS:Edit permission."
-        log_error "and that the domain is active in Cloudflare."
+        log_error "Check Cloudflare zone status and token DNS edit permission."
     fi
+
     exit 1
 fi
 
-# ── Install certificate ───────────────────────────────────────
 log_info "Installing certificate to ${ECC_DIR}..."
-
-"${ACMEBIN}" \
+"${ACME_BIN}" \
     --install-cert \
     -d "${DOMAIN}" \
     --ecc \
@@ -170,9 +163,13 @@ log_info "Installing certificate to ${ECC_DIR}..."
     --key-file "${ECC_DIR}/key.pem" \
     --reloadcmd "${RELOAD_CMD}"
 
-log_success "ECC certificate issued and installed!"
-log_info "Certificate dir : ${ECC_DIR}"
-log_info "Fullchain       : ${ECC_DIR}/fullchain.pem"
-log_info "Private key     : ${ECC_DIR}/key.pem"
-log_info "Reload cmd      : ${RELOAD_CMD}"
-log_info "Auto-renewal    : managed by acme.sh cron job"
+chmod 600 "${ECC_DIR}/key.pem"
+chmod 644 "${ECC_DIR}/chain.pem" "${ECC_DIR}/cert.pem" "${ECC_DIR}/fullchain.pem"
+
+log_success "ECC certificate installed."
+log_info "Domain: ${DOMAIN}"
+log_info "Certificate dir: ${ECC_DIR}"
+log_info "Fullchain: ${ECC_DIR}/fullchain.pem"
+log_info "Private key: ${ECC_DIR}/key.pem"
+log_info "Reload cmd: ${RELOAD_CMD}"
+log_info "Renewal: managed by acme.sh cron job"

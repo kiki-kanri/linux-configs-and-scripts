@@ -1,28 +1,22 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# disable-ipv6.sh — Disable IPv6 on the system
+# Disable IPv6 using the repository sysctl template.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
-done
+SYSCTL_SRC="${SCRIPT_DIR}/../conf/sysctl.d/99-disable-ipv6.conf"
+SYSCTL_DEST="/etc/sysctl.d/99-disable-ipv6.conf"
 
 require_root
+require_cmd sysctl
 
-SRC="${SCRIPT_DIR}/../conf/sysctl.d/99-disable-ipv6.conf"
-SYSCTL_CONF="/etc/sysctl.d/99-disable-ipv6.conf"
+log_info "Installing IPv6 disable sysctl config..."
+install_file "${SYSCTL_SRC}" "${SYSCTL_DEST}" 644
 
-if [[ ! -f "${SRC}" ]]; then
-    log_error "sysctl template not found: ${SRC}"
-    exit 1
-fi
+log_info "Applying sysctl config: ${SYSCTL_DEST}"
+sysctl -p "${SYSCTL_DEST}" >/dev/null
 
-log_info "Disabling IPv6..."
-cp -f "${SRC}" "${SYSCTL_CONF}"
-sysctl -p "${SYSCTL_CONF}" >/dev/null 2>&1 || true
-log_success "IPv6 disabled."
+log_success "IPv6 sysctl config installed and applied."

@@ -1,28 +1,33 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# disable-motds.sh — Disable MOTD (Message of the Day) login banners
+# Disable selected executable MOTD scripts.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
-done
+motd_scripts=(
+    /etc/update-motd.d/00-header
+    /etc/update-motd.d/10-help-text
+    /etc/update-motd.d/50-landscape-sysinfo
+    /etc/update-motd.d/50-motd-news
+    /etc/update-motd.d/80-edk2-ovmf
+    /etc/update-motd.d/90-updates-available
+    /etc/update-motd.d/91-apt-dracles
+    /etc/update-motd.d/95-hwe-eol
+    /etc/update-motd.d/98-reboot-required
+)
 
 require_root
 
-for f in \
-    /etc/update-motd.d/00-header \
-    /etc/update-motd.d/10-help-text \
-    /etc/update-motd.d/50-landscape-sysinfo \
-    /etc/update-motd.d/50-motd-news \
-    /etc/update-motd.d/80-edk2-ovmf \
-    /etc/update-motd.d/90-updates-available \
-    /etc/update-motd.d/91-apt-dracles \
-    /etc/update-motd.d/95-hwe-eol \
-    /etc/update-motd.d/98-reboot-required; do
-    chmod -x "$f" 2>/dev/null || true
+for motd_script in "${motd_scripts[@]}"; do
+    if [[ -e "${motd_script}" ]]; then
+        chmod -x "${motd_script}"
+        log_info "Disabled MOTD script: ${motd_script}"
+    else
+        log_debug "MOTD script not found: ${motd_script}"
+    fi
 done
+
+log_success "Selected MOTD scripts disabled."

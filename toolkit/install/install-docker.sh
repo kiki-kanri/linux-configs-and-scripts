@@ -1,68 +1,61 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# install-docker.sh — Install Docker Engine via the official installer
-#
-# Uses the official Docker install script:
-#   https://github.com/docker/docker-install
-#   curl -fsSL https://get.docker.com | sh
-#
-# Installs: Docker Engine, Docker CLI, Docker Buildx, Docker Compose, containerd, runc
+# Install or refresh Docker Engine with Docker's official installer.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
+INSTALL_URL="https://get.docker.com"
+force=false
+installer=""
+
+cleanup() {
+    [[ -z "${installer}" ]] || rm -f "${installer}"
+}
+
+while (($# > 0)); do
+    case "$1" in
+    -f)
+        force=true
+        shift
+        ;;
+    -*)
+        log_error "Unknown option: $1"
+        exit 1
+        ;;
+    *)
+        log_error "Unexpected argument: $1"
+        exit 1
+        ;;
+    esac
 done
 
 require_root
-require_cmd curl
+require_cmd curl sh mktemp rm
 
-do_install() {
-    log_info "Running official Docker installation script..."
-    log_info "(curl -fsSL https://get.docker.com | sh)"
+if command_exists docker && [[ "${force}" == false ]]; then
+    log_info "Docker is already installed: $(docker --version 2>/dev/null || printf 'version unknown')"
+    log_info "Use -f to run Docker's installer again."
+else
+    installer="$(mktemp)"
+    trap cleanup EXIT
 
-    if ! curl -fsSL https://get.docker.com | sh; then
-        log_error "Docker installation failed."
-        exit 1
-    fi
+    log_info "Downloading Docker official installer..."
+    curl -fsSL --output "${installer}" "${INSTALL_URL}"
 
-    log_success "Docker installed."
-}
+    log_info "Running Docker official installer..."
+    sh "${installer}"
+    log_success "Docker installer completed."
+fi
 
-post_install() {
-    # Add current user to docker group so sudo is not required
-    local user="${SUDO_USER:-${USER}}"
+if command_exists systemctl; then
+    log_info "Enabling and starting Docker service..."
+    systemctl enable --now docker || log_warn "Could not enable/start Docker service. Check systemd status manually."
+else
+    log_warn "systemctl not found; skipping Docker service enable/start."
+fi
 
-    if [[ -n "${user}" ]] && [[ "${user}" != "root" ]]; then
-        if ! groups "${user}" | grep -q docker; then
-            log_info "Adding ${user} to docker group..."
-            usermod -aG docker "${user}"
-            log_success "User ${user} added to docker group."
-            log_warn "Log out and back in for group change to take effect."
-        else
-            log_info "User ${user} is already in docker group."
-        fi
-    fi
-
-    # Enable Docker service
-    systemctl enable --now docker 2>/dev/null || true
-
-    log_info "Docker version: $(docker --version 2>/dev/null || echo 'N/A')"
-    log_info "Compose version: $(docker compose version 2>/dev/null || docker-compose --version 2>/dev/null || echo 'N/A')"
-}
-
-main() {
-    if command -v docker >/dev/null 2>&1; then
-        log_info "Docker is already installed: $(docker --version 2>/dev/null || echo '')"
-        confirm "Re-run official installer?" --default=no || exit 0
-    fi
-
-    do_install
-    post_install
-}
-
-main "$@"
+log_info "Docker version: $(docker --version 2>/dev/null || printf 'N/A')"
+log_info "Compose version: $(docker compose version 2>/dev/null || docker-compose --version 2>/dev/null || printf 'N/A')"

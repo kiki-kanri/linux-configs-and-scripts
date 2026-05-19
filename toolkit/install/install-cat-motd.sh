@@ -1,28 +1,19 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# install-cat-motd.sh — Install the cat MOTD banner script
+# Install the custom cat MOTD script.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
-done
+MOTD_SRC="${SCRIPT_DIR}/../conf/update-motd.d/9999-cat"
+MOTD_DEST="/etc/update-motd.d/9999-cat"
 
 require_root
-
-SRC="${SCRIPT_DIR}/../conf/update-motd.d/9999-cat"
-DEST="/etc/update-motd.d/9999-cat"
-
-if [[ ! -f "${SRC}" ]]; then
-    log_error "Source file not found: ${SRC}"
-    exit 1
-fi
+require_dir /etc/update-motd.d
 
 log_info "Installing cat MOTD script..."
-cp -f "${SRC}" "${DEST}"
-chmod 755 "${DEST}"
-log_success "Installed: ${DEST}"
+install_file "${MOTD_SRC}" "${MOTD_DEST}" 755
+
+log_success "Cat MOTD installed: ${MOTD_DEST}"

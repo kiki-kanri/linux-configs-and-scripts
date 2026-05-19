@@ -1,181 +1,85 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# build-nginx.sh — Build and install nginx from source with HTTP/3 (QuicTLS)
-#
-# Builds:
-#   - QuicTLS (OpenSSL 3.3.0 + QUIC) as the SSL library
-#   - nginx 1.30.0 with HTTP/3, Brotli, GeoIP2, headers-more, zstd
-#
-# Optimizations:
-#   - Clang + thin LTO (Link-Time Optimization)
-#   - march=native (CPU-native instruction set)
-#   - -fstack-protector-strong, FORTIFY_SOURCE, RELRO, PIE
-#   - GSO, quic_retry enabled in nginx.conf
-#
-# Supports fresh install and upgrade (preserves /etc/nginx/{certs,domains,public,nginx.conf})
+# Build and install nginx with HTTP/3, QuicTLS, Brotli, GeoIP2, headers-more and zstd.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
-done
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/build-nginx.d/settings.sh"
 
-require_root
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/build-nginx.d/packages.sh"
 
-# Toolchain: gcc for QuicTLS (no LTO, assembler flags are gcc-native)
-#             clang  for nginx (thin LTO, LINK=clang++)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/build-nginx.d/sources.sh"
 
-# ── Versions ───────────────────────────────────────────────────
-NGINX_VERSION="1.30.1"
-# Default branch already has QUIC support — no tag needed
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/build-nginx.d/flags.sh"
 
-# ── Paths ──────────────────────────────────────────────────────
-TMP_DIR="/tmp/build-nginx"
-QUICTLS_DIR="/opt/quictls-for-nginx"
-NGINX_BAK="/etc/nginx.bak"
-NGINX_USER="nginx"
-NGINX_GROUP="nginx"
+force=false
+is_upgrade=false
 
-# ── Build packages ─────────────────────────────────────────────
-DEVELOP_PACKAGES=(
-    clang
-    cmake
-    libbrotli-dev
-    libgeoip-dev
-    libmaxminddb-dev
-    libpcre2-dev
-    libzstd-dev
-    lld
-    llvm
-    ninja-build
-    zlib1g-dev
-)
-
-RUNTIME_PACKAGES=(
-    geoip-bin
-    geoip-database
-    libbrotli1
-    libgeoip1
-    libmaxminddb0
-    libpcre2-8-0
-    libzstd1
-    zlib1g
-)
-
-# ── QuicTLS compile flags (gcc, no LTO) ────────────────────────
-QUICTLS_CFLAGS=(
-    -fdata-sections
-    -ffunction-sections
-    -fomit-frame-pointer
-    -fPIC
-    -fstack-clash-protection
-    -fstack-protector-strong
-    -fstrict-aliasing
-    -g
-    -march=native
-    -O3
-    -pthread
-)
-
-QUICTLS_LDFLAGS=()
-
-# ── nginx compile flags ────────────────────────────────────────
-NGINX_CC_OPT=(
-    -fdata-sections
-    -ffunction-sections
-    -flto=thin
-    -fomit-frame-pointer
-    -fPIC
-    -fstack-clash-protection
-    -fstack-protector-strong
-    -I"${QUICTLS_DIR}/build/include"
-    -I"${QUICTLS_DIR}/include"
-    -march=native
-    -O3
-    -pthread
-    -Werror=format-security
-    -Wformat
-)
-
-NGINX_LD_OPT=(
-    -flto=thin
-    -fuse-ld=lld
-    -L"${QUICTLS_DIR}/build"
-    -ldl
-    -lpthread
-    -Wl,--as-needed
-    -Wl,--gc-sections
-    -Wl,-E
-    -Wl,-O2
-    -Wl,-rpath,"${QUICTLS_DIR}/build"
-    -Wl,-z,now
-    -Wl,-z,relro
-)
-
-# ═══════════════════════════════════════════════════════════════
-# Pre-flight checks
-# ═══════════════════════════════════════════════════════════════
-preflight() {
-    require_cmd git cmake ninja
-
-    if systemctl is-active --quiet nginx 2>/dev/null; then
-        log_warn "nginx is currently running. Build will restart it."
-        confirm "Continue?" --default=yes || exit 0
-    fi
+need_arg() {
+    [[ -n "${2:-}" ]] || {
+        log_error "$1 requires a value."
+        exit 1
+    }
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Source prep
-# ═══════════════════════════════════════════════════════════════
-prep_sources() {
-    log_info "Preparing build directory..."
-    rm -rf "${TMP_DIR}"
-    mkdir -p "${TMP_DIR}"
+backup_existing_nginx() {
+    [[ -f /etc/nginx/nginx.conf ]] || return 0
 
-    # ── QuicTLS ────────────────────────────────────────────────
+    log_info "Detected existing nginx installation."
+    log_warn "Upgrade keeps only nginx.conf, certs, domains and public from the old /etc/nginx."
+    if [[ "${force}" == false ]]; then
+        confirm "Continue with nginx upgrade?" --default=yes || exit 0
+    fi
+
+    is_upgrade=true
+    if [[ -e "${NGINX_BACKUP_DIR}" ]]; then
+        local backup_suffix
+        backup_suffix="$(date '+%Y%m%d%H%M%S')"
+        log_info "Rotating existing backup to ${NGINX_BACKUP_DIR}.${backup_suffix}"
+        mv "${NGINX_BACKUP_DIR}" "${NGINX_BACKUP_DIR}.${backup_suffix}"
+    fi
+
+    log_info "Backing up /etc/nginx to ${NGINX_BACKUP_DIR}"
+    cp -a /etc/nginx "${NGINX_BACKUP_DIR}"
+}
+
+install_build_dependencies() {
+    log_info "Installing nginx build dependencies..."
+    apt-get update
+    apt-get install -y --no-install-recommends "${BUILD_PACKAGES[@]}" "${BUILD_TOOLS[@]}"
+    require_cmd clang cmake git make ninja rsync strip wget
+}
+
+prepare_sources() {
+    log_info "Preparing source directories..."
+    rm -rf "${TMP_DIR}"
+    install -d -m 755 "${TMP_DIR}"
+
     log_info "Cloning QuicTLS..."
     rm -rf "${QUICTLS_DIR}"
-    git clone --depth=1 \
-        https://github.com/quictls/quictls.git \
-        "${QUICTLS_DIR}" &
+    git clone --depth=1 "${QUICTLS_REPO}" "${QUICTLS_DIR}"
 
-    # ── Dynamic modules ────────────────────────────────────────
-    log_info "Cloning ngx_brotli..."
-    git clone --recurse-submodules \
-        https://github.com/google/ngx_brotli.git \
-        "${TMP_DIR}/ngx_brotli" &
-
-    log_info "Cloning ngx_http_geoip2_module..."
-    git clone --recurse-submodules \
-        https://github.com/leev/ngx_http_geoip2_module.git \
-        "${TMP_DIR}/ngx_http_geoip2_module" &
-
-    log_info "Cloning headers-more-nginx-module..."
-    git clone --recurse-submodules \
-        https://github.com/openresty/headers-more-nginx-module.git \
-        "${TMP_DIR}/headers-more-nginx-module" &
-
-    log_info "Cloning zstd-nginx-module..."
-    git clone --recurse-submodules \
-        https://github.com/tokers/zstd-nginx-module.git \
-        "${TMP_DIR}/zstd-nginx-module" &
-
-    wait
+    log_info "Cloning nginx modules..."
+    local module module_name repo_url
+    for module in "${NGINX_MODULE_REPOS[@]}"; do
+        IFS="|" read -r module_name repo_url <<<"${module}"
+        git clone --recurse-submodules "${repo_url}" "${TMP_DIR}/${module_name}"
+    done
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Build QuicTLS (single build, point nginx at build tree)
-# ═══════════════════════════════════════════════════════════════
 build_quictls() {
-    log_info "Building QuicTLS (no LTO — avoids version script conflicts)..."
-
     local build_dir="${QUICTLS_DIR}/build"
+
+    log_info "Building QuicTLS..."
     rm -rf "${build_dir}"
-    mkdir -p "${build_dir}"
+    install -d -m 755 "${build_dir}"
 
     cmake \
         -S "${QUICTLS_DIR}" \
@@ -190,190 +94,170 @@ build_quictls() {
         -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="${QUICTLS_LDFLAGS[*]}"
 
     ninja -C "${build_dir}" -j"$(nproc)"
-
     log_success "QuicTLS built."
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Build nginx
-# ═══════════════════════════════════════════════════════════════
-build_nginx() {
+download_nginx() {
     log_info "Downloading nginx ${NGINX_VERSION}..."
     rm -rf "${TMP_DIR}/nginx-${NGINX_VERSION}" "${TMP_DIR}/nginx-${NGINX_VERSION}.tar.gz"
-    wget -q "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" \
-        -P "${TMP_DIR}"
+    wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -P "${TMP_DIR}"
     tar -xf "${TMP_DIR}/nginx-${NGINX_VERSION}.tar.gz" -C "${TMP_DIR}"
-
-    local nginx_src="${TMP_DIR}/nginx-${NGINX_VERSION}"
-
-    log_info "Configuring nginx (CC=clang)..."
-    cd "${nginx_src}"
-    CC=clang CXX=clang++ ./configure \
-        --add-dynamic-module=../ngx_http_geoip2_module \
-        --add-module=../headers-more-nginx-module \
-        --add-module=../ngx_brotli \
-        --add-module=../zstd-nginx-module \
-        --conf-path=/etc/nginx/nginx.conf \
-        --error-log-path=/var/log/nginx/error.log \
-        --group="${NGINX_GROUP}" \
-        --http-client-body-temp-path=/var/cache/nginx/client_temp \
-        --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
-        --http-log-path=/var/log/nginx/access.log \
-        --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
-        --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
-        --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-        --lock-path=/run/nginx.lock \
-        --modules-path=/usr/lib/nginx/modules \
-        --pid-path=/run/nginx.pid \
-        --prefix=/etc/nginx \
-        --sbin-path=/usr/sbin/nginx \
-        --user="${NGINX_USER}" \
-        --with-cc-opt="${NGINX_CC_OPT[*]}" \
-        --with-compat \
-        --with-file-aio \
-        --with-http_addition_module \
-        --with-http_auth_request_module \
-        --with-http_dav_module \
-        --with-http_degradation_module \
-        --with-http_flv_module \
-        --with-http_gunzip_module \
-        --with-http_gzip_static_module \
-        --with-http_mp4_module \
-        --with-http_random_index_module \
-        --with-http_realip_module \
-        --with-http_secure_link_module \
-        --with-http_slice_module \
-        --with-http_ssl_module \
-        --with-http_stub_status_module \
-        --with-http_sub_module \
-        --with-http_v2_module \
-        --with-http_v3_module \
-        --with-ld-opt="${NGINX_LD_OPT[*]}" \
-        --with-mail \
-        --with-mail_ssl_module \
-        --without-poll_module \
-        --without-select_module \
-        --with-pcre-jit \
-        --with-stream \
-        --with-stream_geoip_module=dynamic \
-        --with-stream_realip_module \
-        --with-stream_ssl_module \
-        --with-stream_ssl_preread_module \
-        --with-threads
-
-    log_info "Compiling nginx (LINK=clang++)..."
-    make -j"$(nproc)" LINK=clang++
-
-    log_info "Installing nginx (LINK=clang++)..."
-    make install LINK=clang++
-
-    # Strip symbols
-    strip -s /usr/sbin/nginx 2>/dev/null || true
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Post-install
-# ═══════════════════════════════════════════════════════════════
-post_install() {
-    local is_upgrade="$1"
+configure_and_build_nginx() {
+    local nginx_src="${TMP_DIR}/nginx-${NGINX_VERSION}"
 
-    # ── User / group ──────────────────────────────────────────
+    log_info "Configuring nginx..."
+    (
+        cd "${nginx_src}"
+        CC=clang CXX=clang++ ./configure \
+            "${NGINX_MODULE_CONFIGURE_ARGS[@]}" \
+            --conf-path=/etc/nginx/nginx.conf \
+            --error-log-path=/var/log/nginx/error.log \
+            --group="${NGINX_GROUP}" \
+            --http-client-body-temp-path=/var/cache/nginx/client_temp \
+            --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
+            --http-log-path=/var/log/nginx/access.log \
+            --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
+            --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
+            --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
+            --lock-path=/run/nginx.lock \
+            --modules-path="${NGINX_MODULES_DIR}" \
+            --pid-path=/run/nginx.pid \
+            --prefix="${NGINX_PREFIX}" \
+            --sbin-path="${NGINX_SBIN}" \
+            --user="${NGINX_USER}" \
+            --with-cc-opt="${NGINX_CC_OPT[*]}" \
+            --with-compat \
+            --with-file-aio \
+            --with-http_addition_module \
+            --with-http_auth_request_module \
+            --with-http_dav_module \
+            --with-http_degradation_module \
+            --with-http_flv_module \
+            --with-http_gunzip_module \
+            --with-http_gzip_static_module \
+            --with-http_mp4_module \
+            --with-http_random_index_module \
+            --with-http_realip_module \
+            --with-http_secure_link_module \
+            --with-http_slice_module \
+            --with-http_ssl_module \
+            --with-http_stub_status_module \
+            --with-http_sub_module \
+            --with-http_v2_module \
+            --with-http_v3_module \
+            --with-ld-opt="${NGINX_LD_OPT[*]}" \
+            --with-mail \
+            --with-mail_ssl_module \
+            --without-poll_module \
+            --without-select_module \
+            --with-pcre-jit \
+            --with-stream \
+            --with-stream_geoip_module=dynamic \
+            --with-stream_realip_module \
+            --with-stream_ssl_module \
+            --with-stream_ssl_preread_module \
+            --with-threads
+
+        log_info "Compiling nginx..."
+        make -j"$(nproc)" LINK=clang++
+
+        log_info "Installing nginx..."
+        make install LINK=clang++
+    )
+
+    strip -s "${NGINX_SBIN}" 2>/dev/null || true
+}
+
+restore_or_install_config() {
+    if [[ "${is_upgrade}" == true ]]; then
+        log_info "Restoring preserved nginx config..."
+        rm -rf /etc/nginx/nginx.conf /etc/nginx/certs /etc/nginx/domains /etc/nginx/public
+        cp -a "${NGINX_BACKUP_DIR}/nginx.conf" /etc/nginx/nginx.conf
+
+        local item
+        for item in certs domains public; do
+            [[ -e "${NGINX_BACKUP_DIR}/${item}" ]] || continue
+            cp -a "${NGINX_BACKUP_DIR}/${item}" /etc/nginx/
+        done
+
+        return 0
+    fi
+
+    log_info "Installing default nginx config..."
+    rsync -a "${REPO_ROOT}/toolkit/conf/nginx/" /etc/nginx/
+    install_file "${REPO_ROOT}/toolkit/conf/systemd/nginx.service" /etc/systemd/system/nginx.service 644
+    systemctl daemon-reload
+}
+
+finish_install() {
     if ! id -u "${NGINX_USER}" >/dev/null 2>&1; then
         useradd -r -s /sbin/nologin "${NGINX_USER}"
         log_info "Created user: ${NGINX_USER}"
     fi
 
-    # ── Directories ────────────────────────────────────────────
-    mkdir -p /var/cache/nginx
-    mkdir -p /var/log/nginx
-    mkdir -p /etc/nginx/certs
+    install -d -m 755 /var/cache/nginx /var/log/nginx /etc/nginx/certs
+    restore_or_install_config
 
-    # ── Upgrade: restore preserved files ───────────────────────
-    if [[ "${is_upgrade}" == "true" ]]; then
-        log_info "Restoring nginx config from backup..."
-        rm -rf \
-            /etc/nginx/nginx.conf \
-            /etc/nginx/certs \
-            /etc/nginx/domains \
-            /etc/nginx/public
-
-        cp -fp "${NGINX_BAK}/nginx.conf" /etc/nginx/nginx.conf
-        cp -rfp \
-            "${NGINX_BAK}/certs" \
-            "${NGINX_BAK}/domains" \
-            "${NGINX_BAK}/public" \
-            /etc/nginx/
-
-        log_info "Config restored from ${NGINX_BAK}/"
-    else
-        # ── Fresh install: merge toolkit configs into /etc/nginx ─
-        rsync -av "${SCRIPT_DIR}/../conf/nginx/" /etc/nginx/
-
-        # systemd unit
-        cp -fp "${SCRIPT_DIR}/../conf/systemd/nginx.service" /etc/systemd/system/nginx.service
-        systemctl daemon-reload
-    fi
-
-    # ── Hold packages ─────────────────────────────────────────
-    if command -v apt-mark >/dev/null 2>&1; then
+    if command_exists apt-mark; then
         apt-mark hold nginx nginx-debug 2>/dev/null || true
     fi
 
-    # ── Enable + start ────────────────────────────────────────
+    "${NGINX_SBIN}" -t
     systemctl enable nginx
     systemctl restart nginx
-
     log_success "nginx ${NGINX_VERSION} installed and started."
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Main
-# ═══════════════════════════════════════════════════════════════
-main() {
-    local is_upgrade="false"
-
-    if [[ -f /etc/nginx/nginx.conf ]]; then
-        log_info "Detected existing nginx installation."
-        log_warn "All files in /etc/nginx will be reset EXCEPT:"
-        log_warn "  certs, domains, public, nginx.conf"
-        log_warn "Old config will be backed up to ${NGINX_BAK}"
-        confirm "Continue with upgrade?" --default=yes || exit 0
-        is_upgrade="true"
-
-        log_info "Backing up existing config to ${NGINX_BAK}..."
-        if [[ -e "${NGINX_BAK}" ]]; then
-            local bak_ts
-            bak_ts="$(date '+%Y%m%d%H%M%S')"
-            log_info "Existing backup found, rotating to ${NGINX_BAK}.${bak_ts}..."
-            mv "${NGINX_BAK}" "${NGINX_BAK}.${bak_ts}"
-        fi
-
-        cp -frp /etc/nginx "${NGINX_BAK}"
-    fi
-
-    log_info "Installing build dependencies..."
-    apt-get update
-    apt-get install -y --no-install-recommends "${DEVELOP_PACKAGES[@]}" g++ gcc git make pkg-config wget
-
-    rm -rf "${TMP_DIR}"
-    preflight
-    prep_sources
-    build_quictls
-    build_nginx
-
-    # Install runtime deps and remove build deps
-    log_info "Removing build dependencies and installing runtime dependencies..."
-    apt-get remove --auto-remove --purge "${DEVELOP_PACKAGES[@]}" 2>/dev/null || true
-    apt-get install -y "${RUNTIME_PACKAGES[@]}"
-
-    post_install "${is_upgrade}"
-
-    log_info "Cleaning up build directory..."
-    rm -rf "${TMP_DIR}"
-
-    # Verify
-    log_info "nginx version: $(/usr/sbin/nginx -v 2>&1)"
-    systemctl status nginx --no-pager | grep -E "Active:|loaded:"
+cleanup_build_dependencies() {
+    log_info "Removing build-only packages and installing runtime packages..."
+    apt-get remove --auto-remove --purge -y "${BUILD_PACKAGES[@]}" 2>/dev/null || true
+    apt-get install -y --no-install-recommends "${RUNTIME_PACKAGES[@]}"
 }
 
-main "$@"
+verify_install() {
+    log_info "nginx version: $("${NGINX_SBIN}" -v 2>&1)"
+    systemctl status nginx --no-pager | grep -E 'Active:|Loaded:' || true
+}
+
+while (($# > 0)); do
+    case "$1" in
+    -f)
+        force=true
+        shift
+        ;;
+    -v)
+        need_arg "$1" "${2:-}"
+        NGINX_VERSION="$2"
+        shift 2
+        ;;
+    -*)
+        log_error "Unknown option: $1"
+        exit 1
+        ;;
+    *)
+        log_error "Unexpected argument: $1"
+        exit 1
+        ;;
+    esac
+done
+
+require_root
+require_cmd apt-get cp date grep id install mv nproc rm systemctl tar useradd
+
+if [[ ! -f /etc/nginx/nginx.conf ]] && systemctl is-active --quiet nginx 2>/dev/null && [[ "${force}" == false ]]; then
+    log_warn "nginx is currently running and will be restarted."
+    confirm "Continue?" --default=yes || exit 0
+fi
+
+backup_existing_nginx
+install_build_dependencies
+prepare_sources
+build_quictls
+download_nginx
+configure_and_build_nginx
+cleanup_build_dependencies
+finish_install
+rm -rf "${TMP_DIR}"
+verify_install

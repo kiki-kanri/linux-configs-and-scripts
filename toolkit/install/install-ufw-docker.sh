@@ -1,71 +1,64 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# install-ufw-docker.sh — Install ufw-docker utility
-#
-# ufw-docker is a tool that makes UFW work properly with Docker.
-# It configures UFW to not interfere with Docker's container networking.
-#
-# Ref: https://github.com/chaifeng/ufw-docker
-#
-# Prerequisites:
-#   - ufw must be installed AND active
-#   - if ufw is not installed or not active, this script skips silently
+# Install ufw-docker when UFW is installed and active.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
-done
+UFW_DOCKER_URL="https://github.com/chaifeng/ufw-docker/raw/master/ufw-docker"
+UFW_DOCKER_BIN="/usr/local/bin/ufw-docker"
+tmp=""
+
+cleanup() {
+    [[ -z "${tmp}" ]] || rm -f "${tmp}"
+}
+
+ufw_is_active() {
+    if command_exists systemctl && systemctl is-active --quiet ufw 2>/dev/null; then
+        return 0
+    fi
+
+    ufw status 2>/dev/null | grep -qi '^Status:[[:space:]]*active'
+}
+
+if (($# > 0)); then
+    log_error "Unexpected argument: $1"
+    exit 1
+fi
 
 require_root
+require_cmd curl grep install mktemp rm
 
-do_install() {
-    # ── Pre-flight: ufw must be installed ───────────────────────
-    if ! command -v ufw >/dev/null 2>&1; then
-        log_info "ufw is not installed — skipping ufw-docker."
-        return 0
-    fi
+if ! command_exists ufw; then
+    log_info "UFW is not installed; skipping ufw-docker."
+    exit 0
+fi
 
-    if ! systemctl is-active --quiet ufw 2>/dev/null; then
-        log_info "ufw is not running — skipping ufw-docker."
-        log_info "Start ufw with: ufw enable"
-        return 0
-    fi
+if ! ufw_is_active; then
+    log_info "UFW is not active; skipping ufw-docker."
+    log_info "Enable UFW first, then rerun this script."
+    exit 0
+fi
 
-    log_info "ufw is active — proceeding with ufw-docker installation..."
+tmp="$(mktemp)"
+trap cleanup EXIT
 
-    # ── Download ufw-docker ──────────────────────────────────────
-    local url="https://github.com/chaifeng/ufw-docker/raw/master/ufw-docker"
-    local dest="/usr/local/bin/ufw-docker"
+log_info "Downloading ufw-docker..."
+curl -fsSL --output "${tmp}" "${UFW_DOCKER_URL}"
+install -m 755 "${tmp}" "${UFW_DOCKER_BIN}"
 
-    log_info "Downloading ufw-docker from ${url}..."
-    if ! curl -fsSL --output "${dest}" "${url}"; then
-        log_error "Download failed."
-        return 1
-    fi
-    chmod +x "${dest}"
+log_info "Applying ufw-docker rules..."
+if ! "${UFW_DOCKER_BIN}" install; then
+    log_error "ufw-docker install failed."
+    rm -f "${UFW_DOCKER_BIN}"
+    exit 1
+fi
 
-    # ── Install ──────────────────────────────────────────────────
-    log_info "Running ufw-docker install..."
-    if ! ufw-docker install; then
-        log_error "ufw-docker install failed."
-        rm -f "${dest}"
-        return 1
-    fi
+if command_exists systemctl; then
+    systemctl restart ufw 2>/dev/null || log_warn "Could not restart ufw with systemctl."
+fi
+ufw reload
 
-    # ── Restart ufw ──────────────────────────────────────────────
-    systemctl restart ufw
-    ufw reload
-
-    log_success "ufw-docker installed to ${dest}"
-}
-
-main() {
-    do_install
-}
-
-main "$@"
+log_success "ufw-docker installed: ${UFW_DOCKER_BIN}"

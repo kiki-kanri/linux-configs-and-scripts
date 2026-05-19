@@ -1,17 +1,18 @@
 #!/bin/bash
-#
-# 9999-cat — custom MOTD banner
-#
+# 9999-cat — custom MOTD banner.
 
-echo -e 'Here is your cat.\n'
-echo '            A____A    '
-echo '           /*    *\   '
-echo '          {   _  _ }  '
-echo '          A` >  v /<  '
-echo '        / !!!!! !!}   '
-echo '       / ! \!!!!! |   '
-echo '  ____{   ) |  |  |   '
-echo ' / ___{ !!c |  |  |   '
-echo '{ (___ \__\__@@_)@_)  '
-echo ' \____)               '
-echo 'Paradise is no longer paradise if there is no cat.'
+cat <<'CAT'
+Here is your cat.
+
+            A____A
+           /*    *\
+          {   _  _ }
+          A` >  v /<
+        / !!!!! !!}
+       / ! \!!!!! |
+  ____{   ) |  |  |
+ / ___{ !!c |  |  |
+{ (___ \__\__@@_)@_)
+ \____)
+Paradise is no longer paradise if there is no cat.
+CAT

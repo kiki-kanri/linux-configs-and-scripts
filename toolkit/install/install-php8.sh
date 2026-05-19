@@ -1,21 +1,11 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# install-php8.sh — Install PHP 8.5 via Ondrej Sury's PPA/repo
-#
-# Supports: Debian, Ubuntu
-# Packages include common extensions for web development.
+# Install or refresh PHP with common extensions via Ondrej Sury's repository.
 
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}" .sh)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../../lib"
-
-for lib in "${LIB_DIR}"/*.sh; do
-    [[ -f "${lib}" ]] && source "${lib}"
-done
-
-require_root
+# shellcheck disable=SC1091
+source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
 PHP_VERSION="8.5"
 PHP_EXTENSIONS=(
@@ -43,52 +33,61 @@ PHP_EXTENSIONS=(
     zstd
 )
 
-do_install() {
-    log_info "Installing prerequisites..."
+force=false
+packages=()
+
+while (($# > 0)); do
+    case "$1" in
+    -f)
+        force=true
+        shift
+        ;;
+    -*)
+        log_error "Unknown option: $1"
+        exit 1
+        ;;
+    *)
+        log_error "Unexpected argument: $1"
+        exit 1
+        ;;
+    esac
+done
+
+require_root
+require_cmd apt-get head
+
+if command_exists php && [[ "${force}" == false ]]; then
+    log_info "PHP is already installed: $(php --version 2>/dev/null | head -1 || printf 'version unknown')"
+    log_info "Use -f to reinstall PHP ${PHP_VERSION}."
+else
+    log_info "Installing PHP repository prerequisites..."
     apt-get update
     apt-get install -y apt-transport-https ca-certificates lsb-release software-properties-common
 
-    # Add Ondrej PHP repo
-    log_info "Adding Ondrej Sury's PHP repository..."
-    if ! command -v add-apt-repository >/dev/null 2>&1; then
-        apt-get install -y software-properties-common
-    fi
+    log_info "Adding Ondrej Sury PHP repository..."
+    require_cmd add-apt-repository
     add-apt-repository -y ppa:ondrej/php
 
     apt-get update
 
-    # Build package list
-    local packages=()
-    for ext in "${PHP_EXTENSIONS[@]}"; do
-        packages+=("php${PHP_VERSION}-${ext}")
+    for extension in "${PHP_EXTENSIONS[@]}"; do
+        packages+=("php${PHP_VERSION}-${extension}")
     done
 
     log_info "Installing PHP ${PHP_VERSION} packages..."
     apt-get install -y "${packages[@]}"
 
-    log_info "Enabling and starting php${PHP_VERSION}-fpm..."
-    systemctl enable "php${PHP_VERSION}-fpm"
-    systemctl start "php${PHP_VERSION}-fpm"
-
-    log_success "PHP ${PHP_VERSION} installed."
-}
-
-post_install() {
-    log_info "PHP version : $(php --version 2>/dev/null | head -1 || echo 'N/A')"
-    log_info "FPM status  : $(systemctl is-active "php${PHP_VERSION}-fpm" 2>/dev/null || echo 'N/A')"
-    log_info "Composer    : $(command -v composer >/dev/null 2>&1 && echo 'found' || echo 'not found — run: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer')"
-}
-
-main() {
-    if command -v php >/dev/null 2>&1; then
-        local current_version
-        current_version="$(php --version 2>/dev/null | head -1 || echo '')"
-        log_info "PHP is already installed: ${current_version}"
-        confirm "Re-install PHP ${PHP_VERSION}?" --default=no || exit 0
+    if command_exists systemctl; then
+        log_info "Enabling and starting php${PHP_VERSION}-fpm..."
+        systemctl enable "php${PHP_VERSION}-fpm" || log_warn "Could not enable php${PHP_VERSION}-fpm."
+        systemctl restart "php${PHP_VERSION}-fpm" || log_warn "Could not start php${PHP_VERSION}-fpm."
+    else
+        log_warn "systemctl not found; skipping php${PHP_VERSION}-fpm service setup."
     fi
 
-    do_install
-    post_install
-}
+    log_success "PHP ${PHP_VERSION} installed."
+fi
 
-main "$@"
+log_info "PHP version : $(php --version 2>/dev/null | head -1 || printf 'N/A')"
+log_info "FPM status  : $(systemctl is-active "php${PHP_VERSION}-fpm" 2>/dev/null || printf 'N/A')"
+log_info "Composer    : $(command_exists composer && printf 'found' || printf 'not found — run: curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer')"
