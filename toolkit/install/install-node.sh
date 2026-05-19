@@ -56,4 +56,7 @@ else
     log_warn "npm not found."
 fi
 
+log_info "Applying Node package-manager security config..."
+"${REPO_ROOT}/toolkit/security/setup-node-package-security.sh"
+
 log_success "Node.js setup complete."

@@ -115,6 +115,10 @@ sync_home_dirs() {
         rsync -a /etc/skel/ "${user_dir}/"
         chown -R "${user_name}:${user_name}" "${user_dir}"
         chmod 600 "${user_dir}/.bashrc" "${user_dir}/.profile"
+        [[ ! -f "${user_dir}/.npmrc" ]] || chmod 600 "${user_dir}/.npmrc"
+        [[ ! -f "${user_dir}/.bunfig.toml" ]] || chmod 600 "${user_dir}/.bunfig.toml"
+        [[ ! -d "${user_dir}/.config/pnpm" ]] || chmod 700 "${user_dir}/.config/pnpm"
+        [[ ! -f "${user_dir}/.config/pnpm/rc" ]] || chmod 600 "${user_dir}/.config/pnpm/rc"
         if [[ -d "${user_dir}/.ssh" ]]; then
             chmod 700 "${user_dir}/.ssh"
             find "${user_dir}/.ssh" -type f -exec chmod 600 {} +
@@ -138,7 +142,10 @@ log_info "Selected timezone: ${TIMEZONE}"
 log_info "Installing bootstrap config files..."
 rsync_bootstrap_dir /etc/
 rsync_bootstrap_dir /root/
-chmod 644 /etc/bash.bashrc /etc/profile
+chmod 644 /etc/bash.bashrc /etc/profile /etc/npmrc /etc/pnpm/rc /etc/bun/bunfig.toml /etc/profile.d/99-node-security.sh /etc/profile.d/99-security-umask.sh
+chmod 755 /etc/pnpm /etc/bun
+chmod 600 /root/.npmrc /root/.config/pnpm/rc /root/.bunfig.toml
+chmod 700 /root/.config/pnpm
 
 log_info "Setting SSH port to ${SSH_PORT}..."
 sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
