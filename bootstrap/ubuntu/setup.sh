@@ -82,11 +82,6 @@ read_ssh_port() {
             continue
         fi
 
-        if [[ "${port}" != "22" ]] && ss -tulpn | grep -q ":${port}\b"; then
-            log_error "Port ${port} is already in use."
-            continue
-        fi
-
         SSH_PORT="${port}"
         return 0
     done
@@ -99,7 +94,7 @@ read_timezone() {
         printf 'Enter timezone [Asia/Taipei]: ' >/dev/tty
         read -r timezone </dev/tty
         timezone="${timezone:-Asia/Taipei}"
-        if timedatectl list-timezones | grep -qx "${timezone}"; then
+        if [[ -f "/usr/share/zoneinfo/${timezone}" ]]; then
             TIMEZONE="${timezone}"
             return 0
         fi
@@ -133,7 +128,7 @@ sync_home_dirs() {
 require_cmd apt-get git curl
 
 "${TOOLKIT_DIR}/install/install-base-packages.sh"
-require_cmd basename chmod chown curl find grep locale-gen rsync sed ss stat systemctl timedatectl ufw update-locale
+require_cmd basename chmod chown curl find locale-gen rsync sed stat systemctl ufw update-locale
 
 read_ssh_port
 log_info "Selected SSH port: ${SSH_PORT}"
