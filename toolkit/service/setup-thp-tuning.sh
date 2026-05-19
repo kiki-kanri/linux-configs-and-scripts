@@ -24,7 +24,7 @@ write_runtime_value() {
         return 0
     fi
 
-    if printf '%s\n' "${value}" >"${path}" 2>/dev/null; then
+    if echo "${value}" >"${path}" 2>/dev/null; then
         log_info "${label}: ${value}"
     else
         log_warn "Could not set ${label} via ${path}."

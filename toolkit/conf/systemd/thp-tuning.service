@@ -4,9 +4,9 @@ After=systemd-sysctl.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c '[ ! -e /sys/kernel/mm/transparent_hugepage/enabled ] || printf %%s\\n madvise > /sys/kernel/mm/transparent_hugepage/enabled'
-ExecStart=/bin/sh -c '[ ! -e /sys/kernel/mm/transparent_hugepage/defrag ] || printf %%s\\n madvise > /sys/kernel/mm/transparent_hugepage/defrag'
-ExecStart=/bin/sh -c '[ ! -e /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none ] || printf %%s\\n 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none'
+ExecStart=/bin/sh -c '[ ! -e /sys/kernel/mm/transparent_hugepage/enabled ] || echo madvise > /sys/kernel/mm/transparent_hugepage/enabled'
+ExecStart=/bin/sh -c '[ ! -e /sys/kernel/mm/transparent_hugepage/defrag ] || echo madvise > /sys/kernel/mm/transparent_hugepage/defrag'
+ExecStart=/bin/sh -c '[ ! -e /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none ] || echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none'
 RemainAfterExit=yes
 
 [Install]
