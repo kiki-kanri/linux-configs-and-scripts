@@ -8,7 +8,9 @@ set -euo pipefail
 REPO_URL="https://github.com/kiki-kanri/linux-configs-and-scripts"
 WORK_DIR="/tmp/linux-configs-and-scripts"
 BOOTSTRAP_DIR="${WORK_DIR}/bootstrap/ubuntu"
+SSH_PORT=""
 TOOLKIT_DIR="${WORK_DIR}/toolkit"
+TIMEZONE=""
 
 # Run
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -68,7 +70,8 @@ read_ssh_port() {
     local port
 
     while true; do
-        read -r -p "Enter SSH port: " port </dev/tty
+        printf 'Enter SSH port: ' >/dev/tty
+        read -r port </dev/tty
         if [[ ! "${port}" =~ ^[0-9]+$ ]]; then
             log_error "Invalid port: must be a number."
             continue
@@ -84,7 +87,7 @@ read_ssh_port() {
             continue
         fi
 
-        printf '%s\n' "${port}"
+        SSH_PORT="${port}"
         return 0
     done
 }
@@ -93,10 +96,11 @@ read_timezone() {
     local timezone
 
     while true; do
-        read -r -p "Enter timezone [Asia/Taipei]: " timezone </dev/tty
+        printf 'Enter timezone [Asia/Taipei]: ' >/dev/tty
+        read -r timezone </dev/tty
         timezone="${timezone:-Asia/Taipei}"
         if timedatectl list-timezones | grep -qx "${timezone}"; then
-            printf '%s\n' "${timezone}"
+            TIMEZONE="${timezone}"
             return 0
         fi
 
@@ -131,8 +135,10 @@ require_cmd apt-get git curl
 "${TOOLKIT_DIR}/install/install-base-packages.sh"
 require_cmd basename chmod chown curl find grep locale-gen rsync sed ss stat systemctl timedatectl ufw update-locale
 
-SSH_PORT="$(read_ssh_port)"
-TIMEZONE="$(read_timezone)"
+read_ssh_port
+log_info "Selected SSH port: ${SSH_PORT}"
+read_timezone
+log_info "Selected timezone: ${TIMEZONE}"
 
 log_info "Installing bootstrap config files..."
 rsync_bootstrap_dir /etc/
