@@ -1,154 +1,179 @@
 #!/bin/bash
 # -*- mode: bash; tab-size: 4; -*-
-# setup.sh — Bootstrap Ubuntu server with linux-configs-and-scripts
-#
-# Clones the repo, fixes permissions, installs base packages, configures system
-# (SSH port, timezone, locale, UFW, MOTD), and runs toolkit scripts.
+# Bootstrap an Ubuntu server from a raw curl pipe, then run repo-local toolkit scripts.
 
 set -euo pipefail
 
-# ── bootstrap ─────────────────────────────────────────────────────────────────
-cd /tmp
-echo 'Cloning linux-configs-and-scripts...'
+# Constants
+REPO_URL="https://github.com/kiki-kanri/linux-configs-and-scripts"
+WORK_DIR="/tmp/linux-configs-and-scripts"
+BOOTSTRAP_DIR="${WORK_DIR}/bootstrap/ubuntu"
+TOOLKIT_DIR="${WORK_DIR}/toolkit"
+
+# Run
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+    printf '[setup-ubuntu] ERROR: This script must be run as root.\n' >&2
+    exit 1
+fi
+
+printf '[setup-ubuntu] INFO: Installing bootstrap dependencies...\n'
 apt-get update
-apt-get install -y git
-rm -rf ./linux-configs-and-scripts/
-git clone https://github.com/kiki-kanri/linux-configs-and-scripts
-cd ./linux-configs-and-scripts/
-echo 'Fixing file permissions...'
-./modify-files-permissions.sh
-cd ./bootstrap/ubuntu/
+apt-get install -y ca-certificates curl git iproute2
 
-# Set constants
-ROOT_LIB_DIR="../../lib"
-SCRIPT_NAME='setup-ubuntu.sh'
-TOOLKIT_DIR="../../toolkit"
+printf '[setup-ubuntu] INFO: Cloning linux-configs-and-scripts...\n'
+rm -rf "${WORK_DIR}"
+git clone "${REPO_URL}" "${WORK_DIR}"
 
-# Load libs
-. "${ROOT_LIB_DIR}/log.sh"
-. ./lib.sh
+printf '[setup-ubuntu] INFO: Fixing file permissions...\n'
+"${WORK_DIR}/modify-files-permissions.sh"
 
-# ── install base packages ──────────────────────────────────────────────────────
-"${TOOLKIT_DIR}/install/install-base-packages.sh"
+# shellcheck disable=SC1091
+source "${WORK_DIR}/libs/common.sh"
 
-# ── ask SSH port ───────────────────────────────────────────────────────────────
-while true; do
-    read -p "Please enter SSH port: " SSH_PORT </dev/tty
-    [[ "${SSH_PORT}" =~ ^[0-9]+$ ]] || {
-        log_error "Invalid port: must be a number"
-        continue
-    }
-
-    if (($SSH_PORT < 1 || $SSH_PORT > 65535)); then
-        log_error "Invalid port: must be 1-65535"
-        continue
-    fi
-
-    if [[ "${SSH_PORT}" != "22" ]]; then
-        if ss -tulpn | grep -q ":${SSH_PORT}\b"; then
-            log_error "Port ${SSH_PORT} is already in use"
-            continue
-        fi
-    fi
-
-    break
-done
-
-# ── ask timezone ───────────────────────────────────────────────────────────────
-while true; do
-    read -p "Please enter timezone [Asia/Taipei]: " TIMEZONE </dev/tty
-    TIMEZONE=${TIMEZONE:-Asia/Taipei}
-    if timedatectl list-timezones | grep -qx "${TIMEZONE}"; then
-        timedatectl set-timezone "${TIMEZONE}"
-        break
-    else
-        log_error "Invalid timezone: ${TIMEZONE}"
-    fi
-done
-
-# ── install config files ───────────────────────────────────────────────────────
-log_info 'Installing config files...'
-rsync_dir /etc/
-rsync_dir /root/
-chmod 644 /etc/bash.bashrc /etc/profile
-
-log_info "Setting SSH port to ${SSH_PORT}..."
-sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
-
-# ── sync home directories ─────────────────────────────────────────────────────
-log_info 'Syncing /etc/skel to existing home directories...'
-
-for user_dir in /home/*; do
-    if [ -d "${user_dir}" ] && [ "$(basename "${user_dir}")" != "lost+found" ]; then
-        user_name=$(basename "${user_dir}")
-        rsync -av /etc/skel/ "${user_dir}/"
-        chown -R "${user_name}":"${user_name}" "${user_dir}"
-        chmod 600 "${user_dir}/.bashrc"
-        chmod 600 "${user_dir}/.profile"
-        if [ -d "${user_dir}/.ssh" ]; then
-            chmod 700 "${user_dir}/.ssh"
-            chmod 600 "${user_dir}/.ssh/"* 2>/dev/null || true
-        fi
-    fi
-done
-
-log_info 'Home directories sync complete.'
-
-# ── helper scripts ─────────────────────────────────────────────────────────────
-log_info 'Installing helper scripts...'
-echo '#!/bin/sh
-
+# Functions
+install_ldu() {
+    cat >/usr/local/bin/ldu <<'SCRIPT'
+#!/bin/sh
 if [ $# -eq 0 ]; then
     du -had1 . | sort -h | column -t
 else
     du -had1 "$@" | sort -h | column -t
 fi
-' | tee /usr/local/bin/ldu >/dev/null && chmod +x /usr/local/bin/ldu
+SCRIPT
 
-# ── ufw ────────────────────────────────────────────────────────────────────────
-log_info 'Setting up ufw...'
+    chmod 755 /usr/local/bin/ldu
+}
+
+install_rc_local() {
+    systemctl enable rc-local.service
+    cat >/etc/rc.local <<'SCRIPT'
+#!/bin/bash
+/scripts/ensure-ssh-host-keys.sh
+exit 0
+SCRIPT
+
+    chmod 700 /etc/rc.local
+}
+
+rsync_bootstrap_dir() {
+    local dest="$1"
+    local old_mode
+
+    old_mode="$(stat -c '%a' "${dest}")"
+    rsync -a "${BOOTSTRAP_DIR}/files${dest}" "${dest}"
+    chmod "${old_mode}" "${dest}"
+}
+
+read_ssh_port() {
+    local port
+
+    while true; do
+        read -r -p "Enter SSH port: " port </dev/tty
+        if [[ ! "${port}" =~ ^[0-9]+$ ]]; then
+            log_error "Invalid port: must be a number."
+            continue
+        fi
+
+        if ((port < 1 || port > 65535)); then
+            log_error "Invalid port: must be 1-65535."
+            continue
+        fi
+
+        if [[ "${port}" != "22" ]] && ss -tulpn | grep -q ":${port}\b"; then
+            log_error "Port ${port} is already in use."
+            continue
+        fi
+
+        printf '%s\n' "${port}"
+        return 0
+    done
+}
+
+read_timezone() {
+    local timezone
+
+    while true; do
+        read -r -p "Enter timezone [Asia/Taipei]: " timezone </dev/tty
+        timezone="${timezone:-Asia/Taipei}"
+        if timedatectl list-timezones | grep -qx "${timezone}"; then
+            printf '%s\n' "${timezone}"
+            return 0
+        fi
+
+        log_error "Invalid timezone: ${timezone}"
+    done
+}
+
+sync_home_dirs() {
+    local user_dir user_name
+
+    log_info "Syncing /etc/skel to existing home directories..."
+    for user_dir in /home/*; do
+        [[ -d "${user_dir}" ]] || continue
+        [[ "$(basename -- "${user_dir}")" != "lost+found" ]] || continue
+
+        user_name="$(basename -- "${user_dir}")"
+        rsync -a /etc/skel/ "${user_dir}/"
+        chown -R "${user_name}:${user_name}" "${user_dir}"
+        chmod 600 "${user_dir}/.bashrc" "${user_dir}/.profile"
+        if [[ -d "${user_dir}/.ssh" ]]; then
+            chmod 700 "${user_dir}/.ssh"
+            find "${user_dir}/.ssh" -type f -exec chmod 600 {} +
+        fi
+    done
+
+    log_info "Home directories sync complete."
+}
+
+# Run
+require_cmd apt-get git curl
+
+"${TOOLKIT_DIR}/install/install-base-packages.sh"
+require_cmd basename chmod chown curl find grep locale-gen rsync sed ss stat systemctl timedatectl ufw update-locale
+
+SSH_PORT="$(read_ssh_port)"
+TIMEZONE="$(read_timezone)"
+
+log_info "Installing bootstrap config files..."
+rsync_bootstrap_dir /etc/
+rsync_bootstrap_dir /root/
+chmod 644 /etc/bash.bashrc /etc/profile
+
+log_info "Setting SSH port to ${SSH_PORT}..."
+sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
+
+sync_home_dirs
+
+log_info "Installing helper scripts..."
+install_ldu
+
+log_info "Setting up ufw..."
 sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
 ufw allow "${SSH_PORT}"/tcp comment ssh
-log_success 'Ufw setup complete. Enable it with: ufw enable.'
+log_success "UFW rule added. Enable it with: ufw enable"
 
-# ── locale ─────────────────────────────────────────────────────────────────────
-log_info 'Setting locale...'
+log_info "Setting locale..."
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
-# ── shfmt ──────────────────────────────────────────────────────────────────────
-log_info 'Installing shfmt...'
-curl -L https://github.com/mvdan/sh/releases/download/v3.13.0/shfmt_v3.13.0_linux_amd64 -o /usr/local/bin/shfmt
-chmod +x /usr/local/bin/shfmt
+log_info "Installing shfmt..."
+curl -fsSL https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_linux_amd64 -o /usr/local/bin/shfmt
+chmod 755 /usr/local/bin/shfmt
 
-# ── rc-local ───────────────────────────────────────────────────────────────────
-log_info 'Setting up rc.local...'
-systemctl enable rc-local.service
-rm -rf /etc/rc.local
-echo '#!/bin/bash
+log_info "Setting up rc.local..."
+install_rc_local
 
-/scripts/ensure-ssh-host-keys.sh
+log_info "Copying scripts..."
+install -d -m 755 /scripts
+rsync_bootstrap_dir /scripts/
 
-exit 0
-' | tee /etc/rc.local >/dev/null && chmod 700 /etc/rc.local
-
-# ── copy scripts ───────────────────────────────────────────────────────────────
-log_info 'Copying scripts...'
-mkdir -p /scripts
-rsync_dir /scripts/
-
-# ── toolkit scripts ───────────────────────────────────────────────────────────
-log_info 'Running toolkit scripts...'
-
+log_info "Running toolkit scripts..."
 "${TOOLKIT_DIR}/init/disable-motds.sh"
 "${TOOLKIT_DIR}/init/disable-ipv6.sh"
-"${TOOLKIT_DIR}/init/setup-locale.sh" -y 'en_US.UTF-8'
-"${TOOLKIT_DIR}/init/setup-timezone.sh" -y 'Asia/Taipei'
-
+"${TOOLKIT_DIR}/init/setup-locale.sh" -f en_US.UTF-8
+"${TOOLKIT_DIR}/init/setup-timezone.sh" -f "${TIMEZONE}"
 "${TOOLKIT_DIR}/install/install-7zip.sh"
 "${TOOLKIT_DIR}/install/install-cat-motd.sh"
-
 "${TOOLKIT_DIR}/service/setup-thp-tuning.sh"
 
-# Done
-log_success 'Done, make sure to reboot!'
+log_success "Bootstrap complete. Reboot is recommended."
