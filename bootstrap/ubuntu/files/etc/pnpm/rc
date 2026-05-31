@@ -1,4 +1,4 @@
-minimum-release-age=4320
+minimum-release-age=1440
 ignore-scripts=true
 engine-strict=true
 strict-ssl=true
