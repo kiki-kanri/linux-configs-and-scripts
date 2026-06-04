@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Install database-friendly THP and memory-overcommit tuning.
 
 set -euo pipefail

@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Install or refresh root-managed acme.sh for nginx certificate automation.
 
 set -euo pipefail

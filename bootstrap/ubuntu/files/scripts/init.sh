@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Set hostname and grow root disk space.
 
 set -euo pipefail

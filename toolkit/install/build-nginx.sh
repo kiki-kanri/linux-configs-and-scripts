@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Build and install nginx with HTTP/3, QuicTLS, Brotli, GeoIP2, headers-more and zstd.
 
 set -euo pipefail

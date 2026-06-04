@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Install the custom cat MOTD script.
 
 set -euo pipefail

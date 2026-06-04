@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Grow the root partition, LVM volume and filesystem when supported.
 
 set -euo pipefail

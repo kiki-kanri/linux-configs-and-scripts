@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Install or refresh PHP with common extensions via Ondrej Sury's repository.
 
 set -euo pipefail

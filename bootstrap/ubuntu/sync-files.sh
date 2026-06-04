@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Sync bootstrap-managed files to an already-configured Ubuntu host.
 
 set -euo pipefail

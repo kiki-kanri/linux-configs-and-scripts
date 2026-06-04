@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Disable IPv6 using the repository sysctl template.
 
 set -euo pipefail

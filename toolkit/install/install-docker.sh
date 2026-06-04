@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Install or refresh Docker Engine with Docker's official installer.
 
 set -euo pipefail

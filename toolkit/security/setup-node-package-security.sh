@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Apply npm, pnpm and bun security defaults to system, skel, root and existing users.
 
 set -euo pipefail

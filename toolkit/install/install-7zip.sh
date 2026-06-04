@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Install or update the official 7-Zip Linux binaries (7zz and 7zzs).
 
 set -euo pipefail

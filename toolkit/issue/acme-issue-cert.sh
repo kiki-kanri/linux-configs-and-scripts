@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Issue and install a wildcard ECC certificate with root-managed acme.sh.
 
 set -euo pipefail

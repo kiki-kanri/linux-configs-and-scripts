@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Ensure SSH host keys exist, then restart SSH with retry.
 
 set -euo pipefail

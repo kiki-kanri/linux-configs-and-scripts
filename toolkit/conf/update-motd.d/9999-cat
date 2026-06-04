@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # 9999-cat — custom MOTD banner.
 
 cat <<'CAT'

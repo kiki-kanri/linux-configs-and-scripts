@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Configure the system timezone on Debian/Ubuntu.
 
 set -euo pipefail

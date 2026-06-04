@@ -1,5 +1,4 @@
-#!/bin/bash
-# -*- mode: bash; tab-size: 4; -*-
+#!/usr/bin/env bash
 # Bootstrap an Ubuntu server from a raw curl pipe, then run repo-local toolkit scripts.
 
 set -euo pipefail
@@ -38,7 +37,7 @@ source "${WORK_DIR}/libs/common.sh"
 install_rc_local() {
     systemctl enable rc-local.service
     cat >/etc/rc.local <<'SCRIPT'
-#!/bin/bash
+#!/usr/bin/env bash
 /scripts/ensure-ssh-host-keys.sh
 exit 0
 SCRIPT
