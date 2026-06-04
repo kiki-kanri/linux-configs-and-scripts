@@ -8,7 +8,6 @@ REPO_URL="https://github.com/kiki-kanri/linux-configs-and-scripts"
 WORK_DIR="/tmp/linux-configs-and-scripts"
 BOOTSTRAP_DIR="${WORK_DIR}/bootstrap/ubuntu"
 SCRIPTS_REPO_DIR="/scripts/linux-configs-and-scripts"
-SHFMT_VERSION="3.13.1"
 SSH_PORT=""
 TOOLKIT_DIR="${WORK_DIR}/toolkit"
 TIMEZONE=""
@@ -43,22 +42,6 @@ exit 0
 SCRIPT
 
     chmod 700 /etc/rc.local
-}
-
-install_shfmt() {
-    local arch
-    local shfmt_arch
-    local shfmt_url
-
-    arch="$(detect_architecture)"
-    case "${arch}" in
-    x86_64) shfmt_arch="amd64" ;;
-    aarch64) shfmt_arch="arm64" ;;
-    esac
-
-    shfmt_url="https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_${shfmt_arch}"
-    curl -fsSL "${shfmt_url}" -o /usr/local/bin/shfmt
-    chmod 755 /usr/local/bin/shfmt
 }
 
 rsync_bootstrap_dir() {
@@ -168,9 +151,6 @@ log_info "Setting locale..."
 locale-gen en_US.UTF-8
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
-log_info "Installing shfmt..."
-install_shfmt
-
 log_info "Setting up rc.local..."
 install_rc_local
 
@@ -185,6 +165,7 @@ log_info "Running toolkit scripts..."
 "${TOOLKIT_DIR}/init/setup-timezone.sh" -f "${TIMEZONE}"
 "${TOOLKIT_DIR}/install/install-7zip.sh"
 "${TOOLKIT_DIR}/install/install-cat-motd.sh"
+"${TOOLKIT_DIR}/install/install-shfmt.sh"
 "${TOOLKIT_DIR}/service/setup-thp-tuning.sh"
 
 log_info "Cloning linux-configs-and-scripts to ${SCRIPTS_REPO_DIR}..."
