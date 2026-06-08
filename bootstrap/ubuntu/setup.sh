@@ -115,6 +115,13 @@ sync_home_dirs() {
     log_info "Home directories sync complete."
 }
 
+run_optional_toolkit_script() {
+    local script_path="$1"
+
+    log_info "Running optional toolkit script: ${script_path#"${TOOLKIT_DIR}/"}..."
+    "${script_path}" || log_warn "Optional toolkit script failed; continuing: ${script_path#"${TOOLKIT_DIR}/"}"
+}
+
 # Run
 require_cmd apt-get git curl
 
@@ -165,7 +172,7 @@ log_info "Running toolkit scripts..."
 "${TOOLKIT_DIR}/init/setup-timezone.sh" -f "${TIMEZONE}"
 "${TOOLKIT_DIR}/install/install-7zip.sh"
 "${TOOLKIT_DIR}/install/install-cat-motd.sh"
-"${TOOLKIT_DIR}/install/install-shfmt.sh"
+run_optional_toolkit_script "${TOOLKIT_DIR}/install/install-shfmt.sh"
 "${TOOLKIT_DIR}/service/setup-thp-tuning.sh"
 
 log_info "Cloning linux-configs-and-scripts to ${SCRIPTS_REPO_DIR}..."

@@ -15,6 +15,14 @@ run_script() {
     "${script_path}"
 }
 
+run_optional_script() {
+    local script_path="$1"
+
+    require_file "${script_path}"
+    log_info "Running optional ${script_path#"${REPO_ROOT}/"}..."
+    "${script_path}" || log_warn "Optional script failed; continuing: ${script_path#"${REPO_ROOT}/"}"
+}
+
 nginx_is_installed() {
     command_exists nginx || [[ -d /etc/nginx || -f /etc/nginx/nginx.conf ]]
 }
@@ -62,7 +70,7 @@ run_script "${REPO_ROOT}/toolkit/install/install-7zip.sh"
 run_script "${REPO_ROOT}/toolkit/install/install-base-packages.sh"
 run_script "${REPO_ROOT}/toolkit/install/install-cat-motd.sh"
 run_script "${REPO_ROOT}/toolkit/install/install-ldu.sh"
-run_script "${REPO_ROOT}/toolkit/install/install-shfmt.sh"
+run_optional_script "${REPO_ROOT}/toolkit/install/install-shfmt.sh"
 run_script "${REPO_ROOT}/toolkit/security/setup-fail2ban.sh"
 
 if command_exists node; then
