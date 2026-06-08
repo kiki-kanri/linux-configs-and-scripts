@@ -122,6 +122,112 @@ snap_output() {
     fi
 }
 
+package_kernel_suffix() {
+    local package_name="$1"
+    local suffix
+
+    case "${package_name}" in
+    linux-image-unsigned-[0-9]*) suffix="${package_name#linux-image-unsigned-}" ;;
+    linux-modules-extra-[0-9]*) suffix="${package_name#linux-modules-extra-}" ;;
+    linux-cloud-tools-[0-9]*) suffix="${package_name#linux-cloud-tools-}" ;;
+    linux-modules-[0-9]*) suffix="${package_name#linux-modules-}" ;;
+    linux-headers-[0-9]*) suffix="${package_name#linux-headers-}" ;;
+    linux-image-[0-9]*) suffix="${package_name#linux-image-}" ;;
+    linux-tools-[0-9]*) suffix="${package_name#linux-tools-}" ;;
+    proxmox-headers-[0-9]*-pve) suffix="${package_name#proxmox-headers-}" ;;
+    proxmox-kernel-[0-9]*-pve-signed) suffix="${package_name#proxmox-kernel-}" ;;
+    pve-headers-[0-9]*-pve) suffix="${package_name#pve-headers-}" ;;
+    pve-kernel-[0-9]*-pve) suffix="${package_name#pve-kernel-}" ;;
+    *) return 1 ;;
+    esac
+
+    printf '%s\n' "${suffix%-signed}"
+}
+
+kernel_common_abi() {
+    local kernel_version="$1"
+
+    if [[ "${kernel_version}" =~ ^(.+-[0-9]+)-[^-]+$ ]]; then
+        printf '%s\n' "${BASH_REMATCH[1]}"
+    else
+        printf '%s\n' "${kernel_version}"
+    fi
+}
+
+is_protected_kernel_suffix() {
+    local suffix="$1"
+    local protected
+
+    for protected in "${protected_kernel_suffixes[@]}"; do
+        [[ "${suffix}" == "${protected}" ]] && return 0
+    done
+
+    return 1
+}
+
+cleanup_old_kernels() {
+    local current_kernel
+    local installed_kernel_versions
+    local latest_kernels
+    local kernel_version
+    local package_name
+    local package_suffix
+    local old_kernel_packages=()
+    local protected_kernel_suffixes=()
+
+    section "Old kernel cleanup"
+
+    current_kernel="$(uname -r)"
+    installed_kernel_versions="$({
+        dpkg-query -W -f='${Package}\n' \
+            'linux-image-[0-9]*' \
+            'linux-image-unsigned-[0-9]*' \
+            'proxmox-kernel-[0-9]*-pve-signed' \
+            'pve-kernel-[0-9]*' 2>/dev/null || true
+    } | while read -r package_name; do
+        package_kernel_suffix "${package_name}" || true
+    done | sort -Vu)"
+
+    latest_kernels="$(tail -n 2 <<<"${installed_kernel_versions}")"
+
+    protected_kernel_suffixes+=("${current_kernel}" "$(kernel_common_abi "${current_kernel}")")
+    while read -r kernel_version; do
+        [[ -n "${kernel_version}" ]] || continue
+        protected_kernel_suffixes+=("${kernel_version}" "$(kernel_common_abi "${kernel_version}")")
+    done <<<"${latest_kernels}"
+
+    log_plain "Current kernel: ${current_kernel}"
+    [[ -z "${latest_kernels}" ]] || log_plain "Latest installed kernels kept: ${latest_kernels//$'\n'/, }"
+
+    while read -r package_name; do
+        [[ -n "${package_name}" ]] || continue
+        package_suffix="$(package_kernel_suffix "${package_name}")" || continue
+        is_protected_kernel_suffix "${package_suffix}" && continue
+        old_kernel_packages+=("${package_name}")
+    done < <(
+        dpkg-query -W -f='${Package}\n' \
+            'linux-cloud-tools-[0-9]*' \
+            'linux-headers-[0-9]*' \
+            'linux-image-[0-9]*' \
+            'linux-image-unsigned-[0-9]*' \
+            'linux-modules-[0-9]*' \
+            'linux-modules-extra-[0-9]*' \
+            'linux-tools-[0-9]*' \
+            'proxmox-headers-[0-9]*' \
+            'proxmox-kernel-[0-9]*-pve-signed' \
+            'pve-headers-[0-9]*' \
+            'pve-kernel-[0-9]*' 2>/dev/null | sort -u || true
+    )
+
+    if ((${#old_kernel_packages[@]} == 0)); then
+        log_plain "No old kernel packages to purge."
+        return 0
+    fi
+
+    log_plain "Old kernel packages to purge: ${old_kernel_packages[*]}"
+    run_cmd apt-get remove --auto-remove --purge "${old_kernel_packages[@]}"
+}
+
 cleanup_system() {
     section "System cleanup"
 
@@ -403,11 +509,12 @@ cleanup_docker_builder() {
 main() {
     parse_args "$@"
     require_root
-    require_cmd apt-get df find id install mktemp rm sed stat
+    require_cmd apt-get df dpkg-query find id install mktemp rm sed sort stat tail uname
 
     section "Ubuntu cleanup started"
     log_plain "Dry run: ${DRY_RUN}"
 
+    cleanup_old_kernels
     cleanup_system
     cleanup_snap
     cleanup_flatpak
