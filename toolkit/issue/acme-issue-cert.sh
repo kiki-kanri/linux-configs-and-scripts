@@ -12,6 +12,8 @@ RELOAD_CMD="systemctl reload nginx"
 DNS_PROVIDER="cloudflare"
 FORCE=false
 ACME_BIN="${HOME}/.acme.sh/acme.sh"
+SSL_TEMPLATE="/etc/nginx/public/ssls/example.conf"
+SSL_DEST_DIR="/etc/nginx/public/ssls"
 
 need_arg() {
     [[ -n "${2:-}" ]] || {
@@ -44,6 +46,20 @@ validate_domain() {
     [[ "${domain}" != *'/'* ]] || return 1
     [[ "${domain}" != *[[:space:]]* ]] || return 1
     [[ "${domain}" == *.* ]] || return 1
+}
+
+install_nginx_ssl_domain_config() {
+    local dest="${SSL_DEST_DIR}/${DOMAIN}.conf"
+
+    [[ -f "${SSL_TEMPLATE}" ]] || {
+        log_info "nginx SSL template not found; skipping domain SSL config: ${SSL_TEMPLATE}"
+        return 0
+    }
+
+    log_info "Installing nginx SSL domain config: ${dest}"
+    install -d -m 755 "${SSL_DEST_DIR}"
+    sed "s#certs/domain/#certs/${DOMAIN}/#g" "${SSL_TEMPLATE}" >"${dest}"
+    chmod 644 "${dest}"
 }
 
 require_cloudflare_env() {
@@ -110,7 +126,7 @@ if ! validate_domain "${DOMAIN}"; then
 fi
 
 require_root
-require_cmd chmod install mkdir
+require_cmd chmod install mkdir sed
 
 DNS_MODE="$(normalize_dns_provider "${DNS_PROVIDER}")"
 if [[ "${DNS_MODE}" == "dns_cf" ]]; then
@@ -164,6 +180,7 @@ log_info "Installing certificate to ${ECC_DIR}..."
 
 chmod 600 "${ECC_DIR}/key.pem"
 chmod 644 "${ECC_DIR}/chain.pem" "${ECC_DIR}/cert.pem" "${ECC_DIR}/fullchain.pem"
+install_nginx_ssl_domain_config
 
 log_success "ECC certificate installed."
 log_info "Domain: ${DOMAIN}"
