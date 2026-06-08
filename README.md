@@ -1,6 +1,6 @@
 # linux-configs-and-scripts
 
-# Run bootstrap for ubuntu 24.04
+## Run bootstrap for ubuntu 24.04
 
 ```bash
 sudo apt-get update && \
