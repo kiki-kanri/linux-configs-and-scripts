@@ -30,6 +30,7 @@ apt_install_fail2ban() {
     log_info "Installing Fail2Ban packages..."
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         fail2ban \
+        python3-pyinotify \
         python3-systemd \
         whois
 }
