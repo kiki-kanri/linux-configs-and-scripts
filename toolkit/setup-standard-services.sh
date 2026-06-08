@@ -27,7 +27,8 @@ copy_nginx_public_dir() {
     require_dir "${src_dir}"
     log_info "Copying nginx public ${name} snippets to ${dest_dir}..."
     install -d -m 755 "${dest_dir}"
-    cp -a "${src_dir}/." "${dest_dir}/"
+    cp -R "${src_dir}/." "${dest_dir}/"
+    chown -R root:root "${dest_dir}"
     find "${dest_dir}" -type d -exec chmod 755 {} +
     find "${dest_dir}" -type f -exec chmod 644 {} +
 }
@@ -44,6 +45,7 @@ refresh_nginx_public_snippets() {
     log_info "Copying nginx SSL example snippet to ${ssl_dest}..."
     install -d -m 755 "$(dirname -- "${ssl_dest}")"
     cp -f "${ssl_src}" "${ssl_dest}"
+    chown root:root "${ssl_dest}"
     chmod 644 "${ssl_dest}"
 }
 
@@ -53,7 +55,7 @@ if (($# > 0)); then
 fi
 
 require_root
-require_cmd chmod cp dirname find install
+require_cmd chmod chown cp dirname find install
 
 run_script "${REPO_ROOT}/toolkit/init/disable-motds.sh"
 run_script "${REPO_ROOT}/toolkit/install/install-7zip.sh"
