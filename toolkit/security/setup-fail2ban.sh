@@ -14,6 +14,14 @@ BANTIME="24h"
 FINDTIME="10m"
 MAXRETRY="3"
 IGNOREIP="127.0.0.1/8 ::1"
+NGINX_DENY_HEADER="# Managed by fail2ban nginx-deny action.
+# Banned IPs are appended below as nginx access-module deny directives."
+
+nginx_bin_candidates=(
+    /usr/sbin/nginx
+    /usr/local/sbin/nginx
+    /usr/local/nginx/sbin/nginx
+)
 
 jail_blocks=()
 
@@ -105,9 +113,11 @@ add_log_jail() {
     local log_path="$3"
     local label="${4:-${jail_name}}"
     local action="${5:-}"
+    local action_line=""
 
     [[ -n "${log_path}" ]] || return 0
     fail2ban_filter_exists "${jail_name}" || return 0
+    [[ -z "${action}" ]] || action_line=$'\n'"${action}"
 
     append_jail "$(
         cat <<CONFIG
@@ -115,8 +125,7 @@ add_log_jail() {
 enabled = true
 port = ${port}
 backend = auto
-logpath = ${log_path}
-${action}
+logpath = ${log_path}${action_line}
 CONFIG
     )"
 
@@ -124,25 +133,18 @@ CONFIG
 }
 
 nginx_command() {
+    local candidate
+
     if command_exists nginx; then
         command -v nginx
         return 0
     fi
 
-    if [[ -x /usr/sbin/nginx ]]; then
-        printf '/usr/sbin/nginx\n'
+    for candidate in "${nginx_bin_candidates[@]}"; do
+        [[ -x "${candidate}" ]] || continue
+        printf '%s\n' "${candidate}"
         return 0
-    fi
-
-    if [[ -x /usr/local/sbin/nginx ]]; then
-        printf '/usr/local/sbin/nginx\n'
-        return 0
-    fi
-
-    if [[ -x /usr/local/nginx/sbin/nginx ]]; then
-        printf '/usr/local/nginx/sbin/nginx\n'
-        return 0
-    fi
+    done
 
     return 1
 }
@@ -224,6 +226,11 @@ CONFIG
     log_info "Enabled recidive jail for repeat offenders."
 }
 
+write_nginx_deny_header() {
+    printf '%s\n' "${NGINX_DENY_HEADER}" >"${NGINX_DENY_CONF}"
+    chmod 644 "${NGINX_DENY_CONF}"
+}
+
 install_nginx_deny_action() {
     local deny_dir
     local nginx_bin
@@ -249,11 +256,7 @@ CONFIG
     printf 'nginxcmd = %s\n' "${nginx_bin}" >>"${NGINX_DENY_ACTION_DEST}"
     chmod 644 "${NGINX_DENY_ACTION_DEST}"
 
-    [[ -f "${NGINX_DENY_CONF}" ]] || cat >"${NGINX_DENY_CONF}" <<'CONFIG'
-# Managed by fail2ban nginx-deny action.
-# Banned IPs are appended below as nginx access-module deny directives.
-CONFIG
-    chmod 644 "${NGINX_DENY_CONF}"
+    [[ -f "${NGINX_DENY_CONF}" ]] || write_nginx_deny_header
 }
 
 reset_nginx_deny_state() {
@@ -265,11 +268,7 @@ reset_nginx_deny_state() {
     install -d -m 755 "${deny_dir}"
 
     log_info "Resetting nginx Fail2Ban deny state: ${NGINX_DENY_CONF}"
-    cat >"${NGINX_DENY_CONF}" <<'CONFIG'
-# Managed by fail2ban nginx-deny action.
-# Banned IPs are appended below as nginx access-module deny directives.
-CONFIG
-    chmod 644 "${NGINX_DENY_CONF}"
+    write_nginx_deny_header
 
     if "${nginx_bin}" -t >/dev/null 2>&1; then
         "${nginx_bin}" -s reload >/dev/null 2>&1 || log_warn "Could not reload nginx after resetting Fail2Ban deny state."
