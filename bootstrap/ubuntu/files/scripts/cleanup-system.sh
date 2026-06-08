@@ -141,7 +141,21 @@ package_kernel_suffix() {
     *) return 1 ;;
     esac
 
-    printf '%s\n' "${suffix%-signed}"
+    suffix="${suffix%-signed}"
+    case "${suffix}" in
+    *-pve-amd64 | *-pve-arm64) suffix="${suffix%-*}" ;;
+    esac
+
+    printf '%s\n' "${suffix}"
+}
+
+is_pve_kernel_package() {
+    local package_name="$1"
+
+    case "${package_name}" in
+    linux-image-*-pve-* | proxmox-headers-*-pve | proxmox-kernel-*-pve-signed | pve-headers-*-pve | pve-kernel-*-pve) return 0 ;;
+    *) return 1 ;;
+    esac
 }
 
 kernel_common_abi() {
@@ -201,6 +215,10 @@ cleanup_old_kernels() {
 
     while read -r package_name; do
         [[ -n "${package_name}" ]] || continue
+        if is_pve_kernel_package "${package_name}"; then
+            log_plain "Skipping Proxmox/PVE kernel package: ${package_name}"
+            continue
+        fi
         package_suffix="$(package_kernel_suffix "${package_name}")" || continue
         is_protected_kernel_suffix "${package_suffix}" && continue
         old_kernel_packages+=("${package_name}")
