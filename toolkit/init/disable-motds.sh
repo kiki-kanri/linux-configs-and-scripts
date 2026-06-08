@@ -21,11 +21,15 @@ motd_scripts=(
 require_root
 
 for motd_script in "${motd_scripts[@]}"; do
-    if [[ -e "${motd_script}" ]]; then
-        chmod -x "${motd_script}"
+    if [[ ! -e "${motd_script}" ]]; then
+        log_debug "MOTD script not found: ${motd_script}"
+        continue
+    fi
+
+    if chmod a-x -- "${motd_script}"; then
         log_info "Disabled MOTD script: ${motd_script}"
     else
-        log_debug "MOTD script not found: ${motd_script}"
+        log_warn "Could not disable MOTD script: ${motd_script}"
     fi
 done
 
