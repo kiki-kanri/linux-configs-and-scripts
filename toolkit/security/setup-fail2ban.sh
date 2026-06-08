@@ -256,6 +256,28 @@ CONFIG
     chmod 644 "${NGINX_DENY_CONF}"
 }
 
+reset_nginx_deny_state() {
+    local deny_dir
+    local nginx_bin
+
+    nginx_bin="$(nginx_command)" || return 0
+    deny_dir="$(dirname -- "${NGINX_DENY_CONF}")"
+    install -d -m 755 "${deny_dir}"
+
+    log_info "Resetting nginx Fail2Ban deny state: ${NGINX_DENY_CONF}"
+    cat >"${NGINX_DENY_CONF}" <<'CONFIG'
+# Managed by fail2ban nginx-deny action.
+# Banned IPs are appended below as nginx access-module deny directives.
+CONFIG
+    chmod 644 "${NGINX_DENY_CONF}"
+
+    if "${nginx_bin}" -t >/dev/null 2>&1; then
+        "${nginx_bin}" -s reload >/dev/null 2>&1 || log_warn "Could not reload nginx after resetting Fail2Ban deny state."
+    else
+        log_warn "nginx config test failed after resetting Fail2Ban deny state; nginx was not reloaded."
+    fi
+}
+
 write_fail2ban_daemon_config() {
     local end_marker="# END linux-configs-and-scripts"
     local start_marker="# BEGIN linux-configs-and-scripts"
@@ -369,7 +391,7 @@ if (($# > 0)); then
 fi
 
 require_root
-require_cmd awk chmod grep install mktemp rm dirname
+require_cmd awk cat chmod grep install mktemp rm dirname
 
 apt_install_fail2ban
 add_sshd_jail
@@ -378,6 +400,7 @@ add_mail_jails
 add_ftp_jails
 add_recidive_jail
 install_nginx_deny_action
+reset_nginx_deny_state
 write_fail2ban_daemon_config
 write_jail_config
 restart_fail2ban
