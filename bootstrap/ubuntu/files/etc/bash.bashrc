@@ -78,14 +78,16 @@ fi
 #fi
 
 # CUDA Environment Variables
-export CUDA_HOME='/usr/local/cuda'
+if command -v nvidia-smi >/dev/null 2>&1 && [ -d /usr/local/cuda ]; then
+    export CUDA_HOME='/usr/local/cuda'
 
-case ":${PATH}:" in
-*":${CUDA_HOME}/bin:"*) ;;
-*) export PATH="${CUDA_HOME}/bin:${PATH}" ;;
-esac
+    case ":${PATH}:" in
+    *":${CUDA_HOME}/bin:"*) ;;
+    *) export PATH="${CUDA_HOME}/bin:${PATH}" ;;
+    esac
 
-case ":${LD_LIBRARY_PATH}:" in
-*":${CUDA_HOME}/lib64:"*) ;;
-*) export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH:-}" ;;
-esac
+    case ":${LD_LIBRARY_PATH}:" in
+    *":${CUDA_HOME}/lib64:"*) ;;
+    *) export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH:-}" ;;
+    esac
+fi
