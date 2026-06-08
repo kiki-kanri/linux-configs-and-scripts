@@ -9,6 +9,7 @@ source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common
 SHFMT_BIN="${SHFMT_BIN:-/usr/local/bin/shfmt}"
 SHFMT_REPO="${SHFMT_REPO:-mvdan/sh}"
 SHFMT_VERSION="${SHFMT_VERSION:-latest}"
+tmp_file=""
 
 # Functions
 latest_shfmt_version() {
@@ -24,11 +25,14 @@ shfmt_architecture() {
     esac
 }
 
+cleanup() {
+    [[ -z "${tmp_file}" ]] || rm -f -- "${tmp_file}"
+}
+
 install_shfmt() {
     local arch
     local version
     local url
-    local tmp_file
 
     require_cmd curl install jq mktemp sed
 
@@ -48,7 +52,7 @@ install_shfmt() {
     arch="$(shfmt_architecture)"
     url="https://github.com/${SHFMT_REPO}/releases/download/v${version}/shfmt_v${version}_linux_${arch}"
     tmp_file="$(mktemp)"
-    trap 'rm -f "${tmp_file}"' EXIT
+    trap cleanup EXIT
 
     log_info "Downloading shfmt v${version} (${arch})..."
     curl -fsSL "${url}" -o "${tmp_file}"

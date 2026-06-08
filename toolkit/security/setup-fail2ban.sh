@@ -7,6 +7,9 @@ set -euo pipefail
 source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
 JAIL_DEST="/etc/fail2ban/jail.d/10-linux-configs-services.local"
+FAIL2BAN_LOCAL_DEST="/etc/fail2ban/fail2ban.local"
+NGINX_DENY_ACTION_DEST="/etc/fail2ban/action.d/nginx-deny.conf"
+NGINX_DENY_CONF="/etc/nginx/conf.d/fail2ban-deny.conf"
 BANTIME="24h"
 FINDTIME="10m"
 MAXRETRY="3"
@@ -100,6 +103,7 @@ add_log_jail() {
     local port="$2"
     local log_path="$3"
     local label="${4:-${jail_name}}"
+    local action="${5:-}"
 
     [[ -n "${log_path}" ]] || return 0
     fail2ban_filter_exists "${jail_name}" || return 0
@@ -111,25 +115,49 @@ enabled = true
 port = ${port}
 backend = auto
 logpath = ${log_path}
+${action}
 CONFIG
     )"
 
     log_info "Enabled ${label} jail: ${log_path}"
 }
 
+nginx_command() {
+    if command_exists nginx; then
+        command -v nginx
+        return 0
+    fi
+
+    if [[ -x /usr/sbin/nginx ]]; then
+        printf '/usr/sbin/nginx\n'
+        return 0
+    fi
+
+    if [[ -x /usr/local/sbin/nginx ]]; then
+        printf '/usr/local/sbin/nginx\n'
+        return 0
+    fi
+
+    if [[ -x /usr/local/nginx/sbin/nginx ]]; then
+        printf '/usr/local/nginx/sbin/nginx\n'
+        return 0
+    fi
+
+    return 1
+}
+
 add_nginx_jails() {
     local access_log=""
     local error_log=""
 
-    [[ -d /var/log/nginx || -x /usr/sbin/nginx || -x /usr/local/nginx/sbin/nginx || -x /usr/local/sbin/nginx ]] || return 0
+    nginx_command >/dev/null || return 0
 
     access_log="$(first_existing_file /var/log/nginx/access.log /usr/local/nginx/logs/access.log 2>/dev/null || true)"
     error_log="$(first_existing_file /var/log/nginx/error.log /usr/local/nginx/logs/error.log 2>/dev/null || true)"
 
-    add_log_jail nginx-http-auth http,https "${error_log}"
-    add_log_jail nginx-botsearch http,https "${access_log}"
-    add_log_jail nginx-bad-request http,https "${access_log}"
-    add_log_jail nginx-limit-req http,https "${error_log}"
+    add_log_jail nginx-http-auth http,https "${error_log}" nginx-http-auth "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
+    add_log_jail nginx-botsearch http,https "${access_log}" nginx-botsearch "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
+    add_log_jail nginx-bad-request http,https "${access_log}" nginx-bad-request "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
 }
 
 postfix_detected() {
@@ -196,6 +224,66 @@ CONFIG
     log_info "Enabled recidive jail for repeat offenders."
 }
 
+install_nginx_deny_action() {
+    local deny_dir
+    local nginx_bin
+
+    nginx_bin="$(nginx_command)" || return 0
+    deny_dir="$(dirname -- "${NGINX_DENY_CONF}")"
+    install -d -m 755 "$(dirname -- "${NGINX_DENY_ACTION_DEST}")" "${deny_dir}"
+
+    log_info "Installing nginx deny Fail2Ban action: ${NGINX_DENY_ACTION_DEST}"
+    cat >"${NGINX_DENY_ACTION_DEST}" <<'CONFIG'
+# Managed by linux-configs-and-scripts/toolkit/security/setup-fail2ban.sh
+
+[Definition]
+actionstart = /bin/sh -c 'install -d -m 755 "$(dirname -- "<blockfile>")"; touch "<blockfile>"; chmod 644 "<blockfile>"; <nginxcmd> -t'
+actionstop = /bin/true
+actioncheck = test -f <blockfile>
+actionban = /bin/sh -c 'line="deny <ip>;"; grep -qxF "$line" "<blockfile>" || echo "$line" >> "<blockfile>"; <nginxcmd> -t && <nginxcmd> -s reload'
+actionunban = /bin/sh -c 'if [ -f "<blockfile>" ]; then sed -i "\#^deny <ip>;\$#d" "<blockfile>"; <nginxcmd> -t && <nginxcmd> -s reload; fi'
+
+[Init]
+blockfile = /etc/nginx/conf.d/fail2ban-deny.conf
+CONFIG
+    printf 'nginxcmd = %s\n' "${nginx_bin}" >>"${NGINX_DENY_ACTION_DEST}"
+    chmod 644 "${NGINX_DENY_ACTION_DEST}"
+
+    [[ -f "${NGINX_DENY_CONF}" ]] || cat >"${NGINX_DENY_CONF}" <<'CONFIG'
+# Managed by fail2ban nginx-deny action.
+# Banned IPs are appended below as nginx access-module deny directives.
+CONFIG
+    chmod 644 "${NGINX_DENY_CONF}"
+}
+
+write_fail2ban_daemon_config() {
+    local end_marker="# END linux-configs-and-scripts"
+    local start_marker="# BEGIN linux-configs-and-scripts"
+    local tmp
+
+    tmp="$(mktemp)"
+    if [[ -f "${FAIL2BAN_LOCAL_DEST}" ]]; then
+        awk -v start="${start_marker}" -v end="${end_marker}" '
+            $0 == start { skip = 1; next }
+            $0 == end { skip = 0; next }
+            !skip { print }
+        ' "${FAIL2BAN_LOCAL_DEST}" >"${tmp}"
+    fi
+
+    {
+        cat "${tmp}"
+        cat <<CONFIG
+${start_marker}
+[Definition]
+allowipv6 = auto
+${end_marker}
+CONFIG
+    } >"${FAIL2BAN_LOCAL_DEST}"
+
+    rm -f "${tmp}"
+    chmod 644 "${FAIL2BAN_LOCAL_DEST}"
+}
+
 write_jail_config() {
     local banaction_line
     banaction_line="$(select_banaction_line)"
@@ -225,6 +313,25 @@ CONFIG
     chmod 644 "${JAIL_DEST}"
 }
 
+wait_for_fail2ban() {
+    local attempt
+
+    command_exists fail2ban-client || return 0
+
+    for ((attempt = 1; attempt <= 10; attempt += 1)); do
+        if fail2ban-client ping >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+    done
+
+    log_error "Fail2Ban did not become ready after restart."
+    if command_exists systemctl; then
+        systemctl --no-pager --full status fail2ban >&2 || true
+    fi
+    return 1
+}
+
 restart_fail2ban() {
     if command_exists fail2ban-client; then
         log_info "Checking generated Fail2Ban config..."
@@ -235,12 +342,14 @@ restart_fail2ban() {
         log_info "Enabling and restarting fail2ban service..."
         systemctl enable fail2ban
         systemctl restart fail2ban
+        wait_for_fail2ban
         return 0
     fi
 
     if command_exists service; then
         log_info "Restarting fail2ban service..."
         service fail2ban restart
+        wait_for_fail2ban
         return 0
     fi
 
@@ -251,7 +360,7 @@ show_status() {
     command_exists fail2ban-client || return 0
 
     log_info "Fail2Ban status:"
-    fail2ban-client status || true
+    fail2ban-client status || log_warn "Could not read Fail2Ban status."
 }
 
 if (($# > 0)); then
@@ -260,7 +369,7 @@ if (($# > 0)); then
 fi
 
 require_root
-require_cmd awk chmod grep install
+require_cmd awk chmod grep install mktemp rm dirname
 
 apt_install_fail2ban
 add_sshd_jail
@@ -268,6 +377,8 @@ add_nginx_jails
 add_mail_jails
 add_ftp_jails
 add_recidive_jail
+install_nginx_deny_action
+write_fail2ban_daemon_config
 write_jail_config
 restart_fail2ban
 show_status

@@ -36,7 +36,11 @@ install_file "${LOGROTATE_SRC}" "${LOGROTATE_DEST}" 644
 
 if command_exists logrotate; then
     log_info "Validating logrotate policy..."
-    logrotate -d "${LOGROTATE_DEST}" >/dev/null
+    if ! logrotate -d "${LOGROTATE_DEST}" >/dev/null 2>&1; then
+        log_error "logrotate policy validation failed: ${LOGROTATE_DEST}"
+        logrotate -d "${LOGROTATE_DEST}" >&2 || true
+        exit 1
+    fi
 fi
 
 log_success "nginx logrotate policy installed."
