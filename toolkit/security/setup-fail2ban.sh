@@ -158,7 +158,6 @@ add_nginx_jails() {
 
     add_log_jail nginx-http-auth http,https "${error_log}" nginx-http-auth "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
     add_log_jail nginx-botsearch http,https "${access_log}" nginx-botsearch "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
-    add_log_jail nginx-bad-request http,https "${access_log}" nginx-bad-request "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
 }
 
 postfix_detected() {
