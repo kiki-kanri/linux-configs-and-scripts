@@ -209,6 +209,18 @@ finish_install() {
     log_success "nginx ${NGINX_VERSION} installed and started."
 }
 
+setup_cloudflare_realip() {
+    local setup_script="${REPO_ROOT}/toolkit/service/setup-cloudflare-realip-nginx.sh"
+
+    if [[ ! -x "${setup_script}" ]]; then
+        log_warn "Cloudflare real IP setup script not found; skipping."
+        return 0
+    fi
+
+    log_info "Setting up Cloudflare real IP auto-update for nginx..."
+    "${setup_script}" || log_warn "Cloudflare real IP auto-update setup failed; run ${setup_script} manually."
+}
+
 cleanup_build_dependencies() {
     log_info "Removing build-only packages and installing runtime packages..."
     apt-get remove --auto-remove --purge -y "${BUILD_PACKAGES[@]}" 2>/dev/null || true
@@ -258,5 +270,6 @@ download_nginx
 configure_and_build_nginx
 cleanup_build_dependencies
 finish_install
+setup_cloudflare_realip
 rm -rf "${TMP_DIR}"
 verify_install

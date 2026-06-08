@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Cloudflare real IP range update for nginx
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=1d
+RandomizedDelaySec=30m
+Persistent=true
+Unit=cloudflare-realip-nginx-update.service
+
+[Install]
+WantedBy=timers.target

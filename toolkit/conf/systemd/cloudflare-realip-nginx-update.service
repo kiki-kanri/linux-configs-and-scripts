@@ -1,0 +1,9 @@
+[Unit]
+Description=Update Cloudflare real IP ranges for nginx
+Documentation=https://developers.cloudflare.com/support/troubleshooting/restoring-visitor-ips/restoring-original-visitor-ips/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/update-cloudflare-realip-nginx
