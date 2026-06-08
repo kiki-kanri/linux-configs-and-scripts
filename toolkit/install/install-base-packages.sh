@@ -13,7 +13,6 @@ base_packages=(
     ca-certificates
     cron
     dnsutils
-    fail2ban
     git
     htop
     iftop
@@ -41,6 +40,7 @@ base_packages=(
     unzip
     vim
     wget
+    whois
 )
 
 require_root
