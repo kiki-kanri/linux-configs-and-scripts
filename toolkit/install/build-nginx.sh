@@ -209,6 +209,18 @@ finish_install() {
     log_success "nginx ${NGINX_VERSION} installed and started."
 }
 
+setup_logrotate() {
+    local setup_script="${REPO_ROOT}/toolkit/service/setup-logrotate-nginx.sh"
+
+    if [[ ! -x "${setup_script}" ]]; then
+        log_warn "nginx logrotate setup script not found; skipping."
+        return 0
+    fi
+
+    log_info "Setting up nginx logrotate policy..."
+    "${setup_script}" || log_warn "nginx logrotate setup failed; run ${setup_script} manually."
+}
+
 setup_cloudflare_realip() {
     local setup_script="${REPO_ROOT}/toolkit/service/setup-cloudflare-realip-nginx.sh"
 
@@ -270,6 +282,7 @@ download_nginx
 configure_and_build_nginx
 cleanup_build_dependencies
 finish_install
+setup_logrotate
 setup_cloudflare_realip
 rm -rf "${TMP_DIR}"
 verify_install

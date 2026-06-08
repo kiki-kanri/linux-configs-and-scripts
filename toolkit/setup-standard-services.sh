@@ -72,6 +72,7 @@ else
 fi
 
 if nginx_is_installed; then
+    run_script "${REPO_ROOT}/toolkit/service/setup-logrotate-nginx.sh"
     run_script "${REPO_ROOT}/toolkit/service/setup-cloudflare-realip-nginx.sh"
     refresh_nginx_public_snippets
 else
