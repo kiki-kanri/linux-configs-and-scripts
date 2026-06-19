@@ -1,6 +1,5 @@
 [install]
 minimumReleaseAge = 86400
 ignoreScripts = true
-linker = "isolated"
 saveTextLockfile = true
 telemetry = false

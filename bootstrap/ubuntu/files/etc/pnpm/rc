@@ -1,6 +1,5 @@
 minimum-release-age=1440
 ignore-scripts=true
-engine-strict=true
 strict-ssl=true
 prefer-frozen-lockfile=true
 resolution-mode=highest

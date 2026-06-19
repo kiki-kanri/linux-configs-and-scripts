@@ -23,7 +23,7 @@ apply_npm_config_if_available() {
     log_info "Applying global npm config..."
     npm config set min-release-age 1 -g
     npm config set ignore-scripts true -g
-    npm config set engine-strict true -g
+    npm config set engine-strict false -g
     npm config set audit true -g
     npm config set fund false -g
     npm config set update-notifier false -g
