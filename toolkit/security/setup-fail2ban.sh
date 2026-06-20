@@ -13,7 +13,10 @@ NGINX_DENY_CONF="/etc/nginx/conf.d/fail2ban-deny.conf"
 BANTIME="24h"
 FINDTIME="10m"
 MAXRETRY="3"
-IGNOREIP="127.0.0.1/8 ::1"
+# Never ban local/private infrastructure addresses.
+# This prevents nginx reverse proxies/SSL terminators on the LAN from being
+# written into /etc/nginx/conf.d/fail2ban-deny.conf and blocking all web traffic.
+IGNOREIP="127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 fc00::/7 fe80::/10"
 NGINX_DENY_HEADER="# Managed by fail2ban nginx-deny action.
 # Banned IPs are appended below as nginx access-module deny directives."
 
