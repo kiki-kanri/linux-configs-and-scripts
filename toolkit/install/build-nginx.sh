@@ -32,7 +32,7 @@ backup_existing_nginx() {
     [[ -f /etc/nginx/nginx.conf ]] || return 0
 
     log_info "Detected existing nginx installation."
-    log_warn "Upgrade keeps only nginx.conf, certs, domains and public from the old /etc/nginx."
+    log_warn "Upgrade keeps nginx.conf, certs, conf.d, domains and public from the old /etc/nginx."
     if [[ "${force}" == false ]]; then
         confirm "Continue with nginx upgrade?" --default=yes || exit 0
     fi
@@ -176,7 +176,7 @@ restore_or_install_config() {
         cp -a "${NGINX_BACKUP_DIR}/nginx.conf" /etc/nginx/nginx.conf
 
         local item
-        for item in certs domains public; do
+        for item in certs conf.d domains public; do
             [[ -e "${NGINX_BACKUP_DIR}/${item}" ]] || continue
             cp -a "${NGINX_BACKUP_DIR}/${item}" /etc/nginx/
         done
