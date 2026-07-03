@@ -122,130 +122,6 @@ snap_output() {
     fi
 }
 
-package_kernel_suffix() {
-    local package_name="$1"
-    local suffix
-
-    case "${package_name}" in
-    linux-image-unsigned-[0-9]*) suffix="${package_name#linux-image-unsigned-}" ;;
-    linux-modules-extra-[0-9]*) suffix="${package_name#linux-modules-extra-}" ;;
-    linux-cloud-tools-[0-9]*) suffix="${package_name#linux-cloud-tools-}" ;;
-    linux-modules-[0-9]*) suffix="${package_name#linux-modules-}" ;;
-    linux-headers-[0-9]*) suffix="${package_name#linux-headers-}" ;;
-    linux-image-[0-9]*) suffix="${package_name#linux-image-}" ;;
-    linux-tools-[0-9]*) suffix="${package_name#linux-tools-}" ;;
-    proxmox-headers-[0-9]*-pve) suffix="${package_name#proxmox-headers-}" ;;
-    proxmox-kernel-[0-9]*-pve-signed) suffix="${package_name#proxmox-kernel-}" ;;
-    pve-headers-[0-9]*-pve) suffix="${package_name#pve-headers-}" ;;
-    pve-kernel-[0-9]*-pve) suffix="${package_name#pve-kernel-}" ;;
-    *) return 1 ;;
-    esac
-
-    suffix="${suffix%-signed}"
-    case "${suffix}" in
-    *-pve-amd64 | *-pve-arm64) suffix="${suffix%-*}" ;;
-    esac
-
-    printf '%s\n' "${suffix}"
-}
-
-is_pve_kernel_package() {
-    local package_name="$1"
-
-    case "${package_name}" in
-    linux-image-*-pve-* | proxmox-headers-*-pve | proxmox-kernel-*-pve-signed | pve-headers-*-pve | pve-kernel-*-pve) return 0 ;;
-    *) return 1 ;;
-    esac
-}
-
-kernel_common_abi() {
-    local kernel_version="$1"
-
-    if [[ "${kernel_version}" =~ ^(.+-[0-9]+)-[^-]+$ ]]; then
-        printf '%s\n' "${BASH_REMATCH[1]}"
-    else
-        printf '%s\n' "${kernel_version}"
-    fi
-}
-
-is_protected_kernel_suffix() {
-    local suffix="$1"
-    local protected
-
-    for protected in "${protected_kernel_suffixes[@]}"; do
-        [[ "${suffix}" == "${protected}" ]] && return 0
-    done
-
-    return 1
-}
-
-cleanup_old_kernels() {
-    local current_kernel
-    local installed_kernel_versions
-    local latest_kernels
-    local kernel_version
-    local package_name
-    local package_suffix
-    local old_kernel_packages=()
-    local protected_kernel_suffixes=()
-
-    section "Old kernel cleanup"
-
-    current_kernel="$(uname -r)"
-    installed_kernel_versions="$({
-        dpkg-query -W -f='${Package}\n' \
-            'linux-image-[0-9]*' \
-            'linux-image-unsigned-[0-9]*' \
-            'proxmox-kernel-[0-9]*-pve-signed' \
-            'pve-kernel-[0-9]*' 2>/dev/null || true
-    } | while read -r package_name; do
-        package_kernel_suffix "${package_name}" || true
-    done | sort -Vu)"
-
-    latest_kernels="$(tail -n 2 <<<"${installed_kernel_versions}")"
-
-    protected_kernel_suffixes+=("${current_kernel}" "$(kernel_common_abi "${current_kernel}")")
-    while read -r kernel_version; do
-        [[ -n "${kernel_version}" ]] || continue
-        protected_kernel_suffixes+=("${kernel_version}" "$(kernel_common_abi "${kernel_version}")")
-    done <<<"${latest_kernels}"
-
-    log_plain "Current kernel: ${current_kernel}"
-    [[ -z "${latest_kernels}" ]] || log_plain "Latest installed kernels kept: ${latest_kernels//$'\n'/, }"
-
-    while read -r package_name; do
-        [[ -n "${package_name}" ]] || continue
-        if is_pve_kernel_package "${package_name}"; then
-            log_plain "Skipping Proxmox/PVE kernel package: ${package_name}"
-            continue
-        fi
-        package_suffix="$(package_kernel_suffix "${package_name}")" || continue
-        is_protected_kernel_suffix "${package_suffix}" && continue
-        old_kernel_packages+=("${package_name}")
-    done < <(
-        dpkg-query -W -f='${Package}\n' \
-            'linux-cloud-tools-[0-9]*' \
-            'linux-headers-[0-9]*' \
-            'linux-image-[0-9]*' \
-            'linux-image-unsigned-[0-9]*' \
-            'linux-modules-[0-9]*' \
-            'linux-modules-extra-[0-9]*' \
-            'linux-tools-[0-9]*' \
-            'proxmox-headers-[0-9]*' \
-            'proxmox-kernel-[0-9]*-pve-signed' \
-            'pve-headers-[0-9]*' \
-            'pve-kernel-[0-9]*' 2>/dev/null | sort -u || true
-    )
-
-    if ((${#old_kernel_packages[@]} == 0)); then
-        log_plain "No old kernel packages to purge."
-        return 0
-    fi
-
-    log_plain "Old kernel packages to purge: ${old_kernel_packages[*]}"
-    run_cmd apt-get remove --auto-remove --purge "${old_kernel_packages[@]}"
-}
-
 cleanup_system() {
     section "System cleanup"
 
@@ -323,11 +199,12 @@ cleanup_snap() {
 cleanup_flatpak() {
     section "Flatpak cleanup"
 
-    if command_exists flatpak; then
-        run_cmd flatpak uninstall --unused -y
-    else
+    if ! command_exists flatpak; then
         log_plain "Flatpak not found, skip."
+        return 0
     fi
+
+    run_cmd flatpak uninstall --unused -y || log_warn "Flatpak cleanup failed, continuing."
 }
 
 home_owner() {
@@ -358,6 +235,7 @@ cleanup_home_dir() {
         "${home_dir}/.cache/chrome-remote-desktop" \
         "${home_dir}/.cache/chromium/Default/Cache" \
         "${home_dir}/.cache/cmake" \
+        "${home_dir}/.cache/coursier" \
         "${home_dir}/.cache/Code" \
         "${home_dir}/.cache/Cypress" \
         "${home_dir}/.cache/dconf" \
@@ -367,6 +245,7 @@ cleanup_home_dir() {
         "${home_dir}/.cache/evolution" \
         "${home_dir}/.cache/fontconfig" \
         "${home_dir}/.cache/gnome-software" \
+        "${home_dir}/.cache/hatch" \
         "${home_dir}/.cache/go-build" \
         "${home_dir}/.cache/google-chrome/Default/Cache" \
         "${home_dir}/.cache/Google" \
@@ -387,11 +266,13 @@ cleanup_home_dir() {
         "${home_dir}/.cache/node-gyp" \
         "${home_dir}/.cache/npm" \
         "${home_dir}/.cache/nvidia" \
+        "${home_dir}/.cache/obsidian" \
         "${home_dir}/.cache/openbox" \
         "${home_dir}/.cache/opera" \
         "${home_dir}/.cache/pdm" \
         "${home_dir}/.cache/pip" \
         "${home_dir}/.cache/pip-tools" \
+        "${home_dir}/.cache/pipx" \
         "${home_dir}/.cache/pnpm" \
         "${home_dir}/.cache/poetry" \
         "${home_dir}/.cache/pre-commit" \
@@ -400,20 +281,26 @@ cleanup_home_dir() {
         "${home_dir}/.cache/pypoetry" \
         "${home_dir}/.cache/qtshadercache" \
         "${home_dir}/.cache/ruff" \
+        "${home_dir}/.cache/rye" \
         "${home_dir}/.cache/rust-analyzer" \
         "${home_dir}/.cache/sccache" \
+        "${home_dir}/.cache/sbt" \
         "${home_dir}/.cache/selenium" \
+        "${home_dir}/.cache/slack" \
+        "${home_dir}/.cache/spotify" \
         "${home_dir}/.cache/software-center" \
         "${home_dir}/.cache/thumbnails" \
         "${home_dir}/.cache/thunderbird" \
         "${home_dir}/.cache/torch" \
         "${home_dir}/.cache/tox" \
+        "${home_dir}/.cache/terraform" \
         "${home_dir}/.cache/tracker" \
         "${home_dir}/.cache/tracker3" \
         "${home_dir}/.cache/typescript" \
         "${home_dir}/.cache/update-manager-core" \
         "${home_dir}/.cache/uv" \
         "${home_dir}/.cache/virtualenv" \
+        "${home_dir}/.cache/vivaldi" \
         "${home_dir}/.cache/VSCodium" \
         "${home_dir}/.cache/vulkan" \
         "${home_dir}/.cache/wayland-errors" \
@@ -421,6 +308,7 @@ cleanup_home_dir() {
         "${home_dir}/.cache/xsession-errors" \
         "${home_dir}/.cache/xfce4" \
         "${home_dir}/.cache/yarn" \
+        "${home_dir}/.cache/zoom" \
         "${home_dir}/.cache/zig" \
         "${home_dir}/.cargo/git/checkouts" \
         "${home_dir}/.cargo/registry/cache" \
@@ -519,7 +407,7 @@ cleanup_docker_builder() {
     fi
 
     log_plain "Docker detected."
-    run_cmd docker builder prune -af
+    run_cmd docker builder prune -af || log_warn "Docker builder cleanup failed, continuing."
     log_plain "Only Docker builder cache is cleaned automatically; images and volumes are left untouched."
     log_plain "To clean them manually, run: sudo docker system prune -a / sudo docker volume prune"
 }
@@ -527,12 +415,11 @@ cleanup_docker_builder() {
 main() {
     parse_args "$@"
     require_root
-    require_cmd apt-get df dpkg-query find id install mktemp rm sed sort stat tail uname
+    require_cmd apt-get awk df find id install mktemp rm sed stat
 
     section "Ubuntu cleanup started"
     log_plain "Dry run: ${DRY_RUN}"
 
-    cleanup_old_kernels
     cleanup_system
     cleanup_snap
     cleanup_flatpak
