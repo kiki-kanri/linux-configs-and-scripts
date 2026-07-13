@@ -147,6 +147,7 @@ sed -i "s/SSH_PORT/${SSH_PORT}/" /etc/ssh/sshd_config
 sync_home_dirs
 
 log_info "Installing helper scripts..."
+"${TOOLKIT_DIR}/install/install-git-deep-gc.sh"
 "${TOOLKIT_DIR}/install/install-ldu.sh"
 
 log_info "Setting up ufw..."

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -uo pipefail
+
+(($# > 0)) || set -- .
+du -had1 "$@" | sort -h | column -t

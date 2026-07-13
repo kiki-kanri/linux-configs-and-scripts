@@ -7,20 +7,15 @@ set -euo pipefail
 source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
 LDU_BIN="/usr/local/bin/ldu"
+LDU_SRC="${REPO_ROOT}/toolkit/bin/ldu"
 
 require_root
-require_cmd cat chmod column du sort
+require_cmd chmod chown column cp du rm sort
+require_file "${LDU_SRC}"
 
 log_info "Installing ldu helper..."
-cat >"${LDU_BIN}" <<'SCRIPT'
-#!/bin/sh
-
-if [ $# -eq 0 ]; then
-    du -had1 . | sort -h | column -t
-else
-    du -had1 "$@" | sort -h | column -t
-fi
-SCRIPT
-
+rm -f -- "${LDU_BIN}"
+cp -- "${LDU_SRC}" "${LDU_BIN}"
+chown root:root "${LDU_BIN}"
 chmod 755 "${LDU_BIN}"
 log_success "ldu installed: ${LDU_BIN}"
