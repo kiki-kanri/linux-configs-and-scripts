@@ -1,0 +1,26 @@
+secrets:
+  MARIADB_MAIN_ROOT_PASSWORD:
+    environment: MARIADB_MAIN_ROOT_PASSWORD
+
+services:
+  mariadb-main:
+    container_name: mariadb-main
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/MARIADB_MAIN_ROOT_PASSWORD
+      TZ: '${MARIADB_MAIN_TZ:-UTC}'
+    image: mariadb:12
+    logging:
+      driver: json-file
+      options:
+        max-file: '5'
+        max-size: 10m
+    ports:
+      - '${MARIADB_MAIN_EXPOSE_HOST:-127.0.0.1}:${MARIADB_MAIN_EXPOSE_PORT:-3306}:3306'
+    restart: always
+    secrets:
+      - MARIADB_MAIN_ROOT_PASSWORD
+    stop_grace_period: 2m
+    volumes:
+      - '${MARIADB_MAIN_BACKUPS_PATH:?must be set}:/mnt/backups'
+      - '${MARIADB_MAIN_FILES_PATH:?must be set}:/var/lib/mysql'
+      - ./conf.d:/etc/mysql/conf.d:ro

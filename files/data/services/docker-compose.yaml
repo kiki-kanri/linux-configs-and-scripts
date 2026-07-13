@@ -1,0 +1,24 @@
+name: services
+
+include:
+  # Dragonfly
+  - ./stacks/dragonfly/main/compose.yaml
+
+  # MariaDB
+  - ./stacks/mariadb/main/compose.yaml
+
+  # MongoDB
+  - ./stacks/mongodb/main/compose.yaml
+
+  # PostgreSQL
+  - ./stacks/postgres/main/compose.yaml
+
+  # GitLab
+  - ./stacks/gitlab/compose.yaml
+  - ./stacks/gitlab/runner/compose.yaml
+
+  # Others
+  - ./stacks/pgadmin/compose.yaml
+  - ./stacks/phpmyadmin/compose.yaml
+  - ./stacks/portainer/compose.yaml
+  - ./stacks/verdaccio/compose.yaml

@@ -1,0 +1,33 @@
+[mariadb]
+
+# Binary logging is disabled by default. Uncomment only the log-bin option
+# when replication, CDC, or point-in-time recovery is required.
+# Binary log 預設關閉；需要 replication、CDC 或時間點還原時，只需取消 log-bin 選項的註解。
+
+# Enable the binary log for replication and point-in-time recovery.
+# 啟用 binary log，供複寫及時間點還原使用。
+# log-bin = mariadb-bin
+
+# Assign a unique server ID when binary logging or replication is enabled.
+# 啟用 binary log 或複寫時，為此伺服器指定唯一 ID。
+server-id = 1
+
+# Record row changes for deterministic and reliable replication.
+# 記錄實際資料列變更，提供可預期且可靠的複寫結果。
+binlog-format = ROW
+
+# Flush the binary log at every commit for maximum durability.
+# 每次提交皆同步 binary log，以取得最高耐久性。
+sync-binlog = 1
+
+# Remove binary logs older than seven days.
+# 自動移除超過七天的 binary log。
+binlog-expire-logs-seconds = 604800
+
+# Rotate each binary log at approximately 1 GiB.
+# 單一 binary log 約達 1 GiB 時進行輪替。
+max-binlog-size = 1073741824
+
+# Limit total binary log disk usage to approximately 10 GiB.
+# 將 binary log 磁碟總用量限制在約 10 GiB。
+max-binlog-total-size = 10737418240

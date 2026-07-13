@@ -1,0 +1,18 @@
+services:
+  portainer:
+    container_name: portainer
+    image: 'portainer/portainer-ce:alpine-sts'
+    logging:
+      driver: json-file
+      options:
+        max-file: '3'
+        max-size: 10m
+    ports:
+      - '${PORTAINER_EXPOSE_HOST:-127.0.0.1}:${PORTAINER_EXPOSE_PORT:-9000}:9000'
+    restart: always
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - 'portainer-data:/data'
+
+volumes:
+  portainer-data:

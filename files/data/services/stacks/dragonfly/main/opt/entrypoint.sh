@@ -2,7 +2,13 @@
 
 set -euo pipefail
 
-DRAGONFLY_MAIN_PASSWORD="$(cat /run/secrets/DRAGONFLY_MAIN_PASSWORD 2>/dev/null || echo '')"
+DRAGONFLY_MAIN_PASSWORD=''
+
+if [ -r /run/secrets/DRAGONFLY_MAIN_PASSWORD ]; then
+    DRAGONFLY_MAIN_PASSWORD="$(</run/secrets/DRAGONFLY_MAIN_PASSWORD)"
+else
+    echo 'Warning: "/run/secrets/DRAGONFLY_MAIN_PASSWORD" does not exist or is not readable; starting without a password' >&2
+fi
 
 if [ -n "${DRAGONFLY_MAIN_PASSWORD}" ]; then
     if [ "${#DRAGONFLY_MAIN_PASSWORD}" -ge 96 ]; then

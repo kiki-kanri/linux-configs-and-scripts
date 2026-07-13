@@ -1,0 +1,16 @@
+services:
+  phpmyadmin:
+    container_name: phpmyadmin
+    environment:
+      HIDE_PHP_VERSION: 'true'
+      PMA_ARBITRARY: '1'
+      TZ: UTC
+    image: phpmyadmin:5-apache
+    logging:
+      driver: json-file
+      options:
+        max-file: '2'
+        max-size: 10m
+    ports:
+      - '${PHPMYADMIN_EXPOSE_HOST:-127.0.0.1}:${PHPMYADMIN_EXPOSE_PORT:-9001}:80'
+    restart: always

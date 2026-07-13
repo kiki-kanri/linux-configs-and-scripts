@@ -1,0 +1,21 @@
+services:
+  verdaccio:
+    container_name: verdaccio
+    image: verdaccio/verdaccio
+    logging:
+      driver: json-file
+      options:
+        max-file: '2'
+        max-size: 10m
+    ports:
+      - '${VERDACCIO_EXPOSE_HOST:-127.0.0.1}:${VERDACCIO_EXPOSE_PORT:-4873}:4873'
+    restart: always
+    volumes:
+      - 'verdaccio-conf:/verdaccio/conf'
+      - 'verdaccio-plugins:/verdaccio/plugins'
+      - 'verdaccio-storage:/verdaccio/storage'
+
+volumes:
+  verdaccio-conf:
+  verdaccio-plugins:
+  verdaccio-storage:

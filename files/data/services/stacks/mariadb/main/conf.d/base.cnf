@@ -1,0 +1,25 @@
+[mariadb]
+
+# Use full UTF-8 for new databases and tables.
+# 新資料庫與資料表使用完整 UTF-8 編碼。
+character-set-server = utf8mb4
+
+# Preserve the existing Unicode collation and its comparison behavior.
+# 保留既有 Unicode 定序及其字串比較行為。
+collation-server = utf8mb4_unicode_ci
+
+# Reject invalid or truncated values instead of silently coercing them.
+# 拒絕無效或遭截斷的值，避免靜默轉換造成資料錯誤。
+sql-mode = STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION
+
+# Use a fresh committed snapshot for each statement to reduce lock contention.
+# 每個 statement 讀取最新已提交快照，以降低鎖競爭。
+transaction-isolation = READ-COMMITTED
+
+# Flush the InnoDB redo log at every commit for full transaction durability.
+# 每次提交皆同步 InnoDB redo log，確保完整交易耐久性。
+innodb-flush-log-at-trx-commit = 1
+
+# Limit cumulative on-disk temporary files and tables to 2 GiB.
+# 限制所有連線累計的磁碟暫存檔與暫存表最多使用 2 GiB。
+max-tmp-total-space-usage = 2147483648

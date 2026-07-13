@@ -1,0 +1,41 @@
+services:
+  mongodb-main:
+    command:
+      - mongod
+      - --keyFile
+      - /data/configdb/keyfile
+      - --replSet
+      - rs0
+    container_name: mongodb-main
+    entrypoint: /opt/mongodb/entrypoint.sh
+    environment:
+      GLIBC_TUNABLES: glibc.pthread.rseq=0
+    hostname: mongodb-main
+    image: mongodb/mongodb-community-server:8.3-ubuntu2204-slim
+    logging:
+      driver: json-file
+      options:
+        max-file: '5'
+        max-size: 10m
+    ports:
+      - '${MONGODB_MAIN_EXPOSE_HOST:-127.0.0.1}:${MONGODB_MAIN_EXPOSE_PORT:-27017}:27017'
+    restart: always
+    stop_grace_period: 2m
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+      nofile:
+        hard: 64000
+        soft: 64000
+      nproc:
+        hard: 64000
+        soft: 64000
+    volumes:
+      - '${MONGODB_MAIN_BACKUPS_PATH:?must be set}:/mnt/backups'
+      - '${MONGODB_MAIN_FILES_PATH:?must be set}:/data/db'
+      - ./opt:/opt/mongodb:ro
+      - mongodb-main-config:/data/configdb
+
+volumes:
+  mongodb-main-config:

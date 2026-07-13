@@ -1,0 +1,24 @@
+services:
+  gitlab:
+    container_name: gitlab
+    cpus: '${GITLAB_CPU_LIMIT:-4}'
+    environment:
+      TZ: UTC
+    hostname: '${GITLAB_HOSTNAME:?must be set}'
+    image: gitlab/gitlab-ce:latest
+    logging:
+      driver: json-file
+      options:
+        max-file: '2'
+        max-size: 10m
+    mem_limit: '${GITLAB_MEMORY_LIMIT:-8g}'
+    ports:
+      - '${GITLAB_SSH_EXPOSE_HOST:-127.0.0.1}:${GITLAB_SSH_EXPOSE_PORT:-2222}:22'
+      - '${GITLAB_WEB_EXPOSE_HOST:-127.0.0.1}:${GITLAB_WEB_EXPOSE_PORT:-9002}:80'
+    restart: always
+    shm_size: 256m
+    stop_grace_period: 2m
+    volumes:
+      - '${GITLAB_CONFIG_PATH:?must be set}:/etc/gitlab'
+      - '${GITLAB_DATA_PATH:?must be set}:/var/opt/gitlab'
+      - '${GITLAB_LOGS_PATH:?must be set}:/var/log/gitlab'

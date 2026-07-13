@@ -1,0 +1,17 @@
+[mariadb]
+
+# Disable DNS lookups for client authentication to avoid spoofing and delays.
+# 停用用戶端驗證的 DNS 查詢，避免偽造風險與解析延遲。
+skip-name-resolve
+
+# Disable table symlinks to prevent data-path redirection.
+# 停用資料表符號連結，避免資料路徑被重新導向。
+skip-symbolic-links
+
+# Disable LOAD DATA LOCAL INFILE to prevent clients from exposing local files.
+# 停用 LOAD DATA LOCAL INFILE，避免用戶端本機檔案遭讀取或外洩。
+local-infile = 0
+
+# Restrict server-side import and export operations to the backup mount.
+# 將伺服器端匯入與匯出操作限制在備份掛載目錄內。
+secure-file-priv = /mnt/backups
