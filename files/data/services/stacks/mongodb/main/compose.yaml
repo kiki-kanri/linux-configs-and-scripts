@@ -2,6 +2,7 @@ services:
   mongodb-main:
     command:
       - mongod
+      - --bind_ip_all
       - --keyFile
       - /data/configdb/keyfile
       - --replSet

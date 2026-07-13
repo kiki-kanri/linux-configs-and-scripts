@@ -19,4 +19,4 @@ fi
 
 chmod 400 "${KEYFILE_PATH}"
 
-exec /usr/local/bin/docker-entrypoint "$@"
+exec "$@"

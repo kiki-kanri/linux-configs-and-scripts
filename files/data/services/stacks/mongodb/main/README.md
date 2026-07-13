@@ -1,5 +1,12 @@
 # MongoDB 初始化
 
+## 修復既有資料權限
+
+```bash
+sudo chown -R 1000:1000 /data/databases/mongodb/main/data
+sudo chmod -R u+rwX /data/databases/mongodb/main/data
+```
+
 ## 啟動
 
 ```bash
