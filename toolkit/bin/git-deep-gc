@@ -48,7 +48,7 @@ run_gc() {
 	fi
 
 	printf '[git-deep-gc] START %s\n' "${common_dir}"
-	git --git-dir="${common_dir}" gc "${gc_args[@]}" &
+	git --git-dir="${common_dir}" gc "${gc_args[@]}" >/dev/null 2>&1 &
 	gc_pid="$!"
 	if wait "${gc_pid}"; then
 		trap - HUP INT TERM
