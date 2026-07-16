@@ -2,7 +2,7 @@
 # Paths and version defaults for build-nginx.sh.
 # shellcheck disable=SC2034
 
-NGINX_VERSION="${NGINX_VERSION:-1.30.3}"
+NGINX_VERSION="${NGINX_VERSION:-1.30.4}"
 TMP_DIR="/tmp/build-nginx"
 QUICTLS_DIR="/opt/quictls-for-nginx"
 NGINX_BACKUP_DIR="/etc/nginx.bak"
