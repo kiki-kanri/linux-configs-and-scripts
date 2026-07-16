@@ -1,7 +1,14 @@
 # libs quick reference
 
-- Source all helpers: `source "<repo>/libs/common.sh"`
-- `libs/common.sh`: sets `LIBS_DIR`, `REPO_ROOT`, `SCRIPT_NAME`, `SCRIPT_DIR`; loads all `libs/*.sh` modules.
+Files in this directory are repo-neutral templates. Copy `libs/common.sh` and
+`libs/public/` unchanged to another repository's `scripts/libs/` directory;
+keep repository-specific helpers outside `public/`.
+
+**Files under `scripts/libs/public/*` are maintained exclusively in `kiki-kanri/linux-configs-and-scripts`; downstream repositories must copy them unchanged.**
+
+- Source all helpers: `source "<repo>/scripts/libs/common.sh"`
+- `scripts/libs/common.sh`: preserves `SCRIPT_NAME` and `SCRIPT_DIR`, then loads the public entry point.
+- `scripts/libs/public/common.sh`: sets `LIBS_DIR` and `REPO_ROOT`, then loads all public modules.
 - `log_debug msg...`: print DEBUG to stderr when `VERBOSE=1|yes|true`.
 - `log_info msg...`: print INFO to stdout.
 - `log_success msg...`: print SUCCESS to stdout.
@@ -27,4 +34,4 @@
 - `exec_with_encoded_rustflags [array_name] command...`: exec command with `CARGO_ENCODED_RUSTFLAGS`; uses `rustflags` by default, or an explicit existing Bash array name when the first argument names one.
 - `ensure_cargo_target target`: install Rust target with rustup if missing.
 - `require_cargo_zigbuild`: require `cargo-zigbuild` and `zig`.
-- Internal: `lc_*` functions/vars in `libs/log.sh` are private implementation details; avoid calling directly.
+- Internal: `lc_*` functions/vars in `scripts/libs/public/log.sh` are private implementation details; avoid calling directly.
