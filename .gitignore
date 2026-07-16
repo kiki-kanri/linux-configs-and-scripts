@@ -161,4 +161,7 @@ dist
 node-compile-cache/
 v8-compile-cache*/
 
+# codegraph
+.codegraph/
+
 ### Custom ###
