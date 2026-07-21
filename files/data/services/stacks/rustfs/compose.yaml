@@ -1,0 +1,49 @@
+secrets:
+  RUSTFS_ACCESS_KEY:
+    environment: RUSTFS_ACCESS_KEY
+  RUSTFS_SECRET_KEY:
+    environment: RUSTFS_SECRET_KEY
+
+services:
+  rustfs:
+    container_name: rustfs
+    depends_on:
+      rustfs-permissions:
+        condition: service_completed_successfully
+    environment:
+      RUSTFS_ACCESS_KEY_FILE: /run/secrets/RUSTFS_ACCESS_KEY
+      RUSTFS_ADDRESS: '0.0.0.0:9000'
+      RUSTFS_CONSOLE_ADDRESS: '0.0.0.0:9001'
+      RUSTFS_CONSOLE_ENABLE: 'true'
+      RUSTFS_SECRET_KEY_FILE: /run/secrets/RUSTFS_SECRET_KEY
+      RUSTFS_VOLUMES: /data
+    image: rustfs/rustfs:latest
+    logging:
+      driver: json-file
+      options:
+        max-file: '5'
+        max-size: 10m
+    ports:
+      - '${RUSTFS_EXPOSE_HOST:-127.0.0.1}:${RUSTFS_API_EXPOSE_PORT:-9000}:9000'
+      - '${RUSTFS_EXPOSE_HOST:-127.0.0.1}:${RUSTFS_CONSOLE_EXPOSE_PORT:-9001}:9001'
+    restart: always
+    secrets:
+      - RUSTFS_ACCESS_KEY
+      - RUSTFS_SECRET_KEY
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 1m
+    volumes:
+      - ./data:/data
+
+  rustfs-permissions:
+    command:
+      - chown
+      - -R
+      - 10001:10001
+      - /data
+    image: alpine:latest
+    restart: no
+    user: root
+    volumes:
+      - ./data:/data
