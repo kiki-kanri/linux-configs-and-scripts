@@ -70,9 +70,10 @@ run_script "${REPO_ROOT}/toolkit/install/install-7zip.sh"
 run_script "${REPO_ROOT}/toolkit/install/install-base-packages.sh"
 run_script "${REPO_ROOT}/toolkit/install/install-cat-motd.sh"
 run_script "${REPO_ROOT}/toolkit/install/install-git-deep-gc.sh"
-run_script "${REPO_ROOT}/toolkit/install/install-ldu.sh"
 run_optional_script "${REPO_ROOT}/toolkit/install/install-shfmt.sh"
+run_script "${REPO_ROOT}/toolkit/install/install-ldu.sh"
 run_script "${REPO_ROOT}/toolkit/security/setup-fail2ban.sh"
+run_script "${REPO_ROOT}/toolkit/service/setup-thp-tuning.sh"
 
 if command_exists node; then
     run_script "${REPO_ROOT}/toolkit/security/setup-node-package-security.sh"
