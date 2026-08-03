@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install or refresh PHP with common extensions via Ondrej Sury's repository.
+# Install or refresh PHP with common extensions on supported Ubuntu releases.
 
 set -euo pipefail
 
@@ -17,7 +17,6 @@ PHP_EXTENSIONS=(
     gd
     gmp
     imagick
-    imap
     mbstring
     mongodb
     mysql
@@ -55,17 +54,37 @@ done
 require_root
 require_cmd apt-get head
 
+if [[ ! -r /etc/os-release ]]; then
+    log_error "Cannot determine the operating system: /etc/os-release is unavailable."
+    exit 1
+fi
+
+# shellcheck disable=SC1091
+source /etc/os-release
+
 if command_exists php && [[ "${force}" == false ]]; then
     log_info "PHP is already installed: $(php --version 2>/dev/null | head -1 || printf 'version unknown')"
     log_info "Use -f to reinstall PHP ${PHP_VERSION}."
 else
-    log_info "Installing PHP repository prerequisites..."
-    apt-get update
-    apt-get install -y apt-transport-https ca-certificates lsb-release software-properties-common
+    case "${ID:-}:${VERSION_CODENAME:-}" in
+    ubuntu:jammy | ubuntu:noble)
+        log_info "Installing PHP repository prerequisites..."
+        apt-get update
+        apt-get install -y --no-install-recommends ca-certificates software-properties-common
 
-    log_info "Adding Ondrej Sury PHP repository..."
-    require_cmd add-apt-repository
-    add-apt-repository -y ppa:ondrej/php
+        log_info "Adding Ondrej Sury PHP repository..."
+        require_cmd add-apt-repository
+        add-apt-repository -y ppa:ondrej/php
+        ;;
+    ubuntu:resolute)
+        log_info "Using the Ubuntu ${VERSION_CODENAME} repository for PHP ${PHP_VERSION}."
+        ;;
+    *)
+        log_error "Unsupported operating system release: ${PRETTY_NAME:-unknown}."
+        log_error "Supported Ubuntu releases: 22.04 (jammy), 24.04 (noble), and 26.04 (resolute)."
+        exit 1
+        ;;
+    esac
 
     apt-get update
 
@@ -74,7 +93,7 @@ else
     done
 
     log_info "Installing PHP ${PHP_VERSION} packages..."
-    apt-get install -y "${packages[@]}"
+    apt-get install -y --no-install-recommends "${packages[@]}"
 
     if command_exists systemctl; then
         log_info "Enabling and starting php${PHP_VERSION}-fpm..."
