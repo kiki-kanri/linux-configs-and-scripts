@@ -4,6 +4,7 @@ services:
     environment:
       HIDE_PHP_VERSION: 'true'
       PMA_ARBITRARY: '1'
+      PMA_HOST: mariadb-main
       TZ: UTC
     image: phpmyadmin:5-apache
     logging:

@@ -14,7 +14,7 @@ sql-mode = STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION
 
 # Use a fresh committed snapshot for each statement to reduce lock contention.
 # 每個 statement 讀取最新已提交快照，以降低鎖競爭。
-transaction-isolation = READ-COMMITTED
+transaction-isolation = REPEATABLE-READ
 
 # Flush the InnoDB redo log at every commit for full transaction durability.
 # 每次提交皆同步 InnoDB redo log，確保完整交易耐久性。
