@@ -6,12 +6,12 @@ services:
       PMA_ARBITRARY: '1'
       PMA_HOST: mariadb-main
       TZ: UTC
-    image: phpmyadmin:5-apache
+    image: 'phpmyadmin:5-apache'
     logging:
       driver: json-file
       options:
         max-file: '2'
         max-size: 10m
     ports:
-      - '${PHPMYADMIN_EXPOSE_HOST:-127.0.0.1}:${PHPMYADMIN_EXPOSE_PORT:-9001}:80'
+      - '${PHPMYADMIN_EXPOSE_HOST:?must be set}:${PHPMYADMIN_EXPOSE_PORT:?must be set}:80'
     restart: always

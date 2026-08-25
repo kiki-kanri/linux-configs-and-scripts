@@ -13,15 +13,15 @@ services:
         max-file: '5'
         max-size: 10m
     ports:
-      - ${DRAGONFLY_MAIN_EXPOSE_HOST:-127.0.0.1}:${DRAGONFLY_MAIN_EXPOSE_PORT:-6379}:6379
+      - '${DRAGONFLY_MAIN_EXPOSE_HOST:?must be set}:${DRAGONFLY_MAIN_EXPOSE_PORT:?must be set}:6379'
     restart: always
     secrets:
       - DRAGONFLY_MAIN_PASSWORD
     ulimits:
       memlock: -1
     volumes:
-      - ./opt:/opt/dragonfly:ro
-      - dragonfly-main-data:/data
+      - './opt:/opt/dragonfly:ro'
+      - 'dragonfly-main-data:/data'
 
 volumes:
   dragonfly-main-data:

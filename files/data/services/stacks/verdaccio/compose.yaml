@@ -8,7 +8,7 @@ services:
         max-file: '2'
         max-size: 10m
     ports:
-      - '${VERDACCIO_EXPOSE_HOST:-127.0.0.1}:${VERDACCIO_EXPOSE_PORT:-4873}:4873'
+      - '${VERDACCIO_EXPOSE_HOST:?must be set}:${VERDACCIO_EXPOSE_PORT:?must be set}:4873'
     restart: always
     volumes:
       - 'verdaccio-conf:/verdaccio/conf'

@@ -13,14 +13,14 @@ services:
       PGADMIN_DISABLE_POSTFIX: '1'
       PGADMIN_LISTEN_PORT: 8080
       TZ: UTC
-    image: dpage/pgadmin4:latest
+    image: 'dpage/pgadmin4:latest'
     logging:
       driver: json-file
       options:
         max-file: '2'
         max-size: 10m
     ports:
-      - '${PGADMIN_EXPOSE_HOST:-127.0.0.1}:${PGADMIN_EXPOSE_PORT:-9003}:8080'
+      - '${PGADMIN_EXPOSE_HOST:?must be set}:${PGADMIN_EXPOSE_PORT:?must be set}:8080'
     restart: always
     secrets:
       - PGADMIN_PASSWORD
@@ -28,7 +28,7 @@ services:
       - no-new-privileges:true
     stop_grace_period: 30s
     volumes:
-      - pgadmin-data:/var/lib/pgadmin
+      - 'pgadmin-data:/var/lib/pgadmin'
 
 volumes:
   pgadmin-data:
