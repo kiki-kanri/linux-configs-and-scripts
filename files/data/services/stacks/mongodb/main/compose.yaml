@@ -3,8 +3,8 @@ services:
     command:
       - mongod
       - --bind_ip_all
-      - --keyFile
-      - /data/configdb/keyfile
+      # - --keyFile
+      # - /data/configdb/keyfile
       - --replSet
       - rs0
     container_name: mongodb-main
