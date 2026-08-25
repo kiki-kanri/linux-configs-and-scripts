@@ -21,5 +21,6 @@ include:
   - ./stacks/pgadmin/compose.yaml
   - ./stacks/phpmyadmin/compose.yaml
   - ./stacks/portainer/compose.yaml
+  - ./stacks/registry/compose.yaml
   - ./stacks/rustfs/compose.yaml
   - ./stacks/verdaccio/compose.yaml

@@ -1,0 +1,19 @@
+services:
+  registry:
+    container_name: registry
+    environment:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
+    image: 'registry:2'
+    logging:
+      driver: json-file
+      options:
+        max-file: '2'
+        max-size: 10m
+    ports:
+      - '${REGISTRY_EXPOSE_HOST:-127.0.0.1}:${REGISTRY_EXPOSE_PORT:-5000}:5000'
+    restart: always
+    volumes:
+      - './auth:/auth:ro'
+      - './data:/var/lib/registry'

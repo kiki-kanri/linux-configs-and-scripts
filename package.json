@@ -4,8 +4,8 @@
     "lint:fix": "eslint --fix --max-warnings 0"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.1.0",
+    "@antfu/eslint-config": "^9.3.0",
     "@kikiutils/eslint-config": "^9.2.0",
-    "eslint": "^10.7.0"
+    "eslint": "^10.9.0"
   }
 }
