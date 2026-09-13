@@ -4,6 +4,9 @@ secrets:
 
 services:
   dragonfly-main:
+    command:
+      - --cluster_mode=emulated
+      - --lock_on_hashtags
     container_name: dragonfly-main
     entrypoint: /opt/dragonfly/entrypoint.sh
     image: docker.dragonflydb.io/dragonflydb/dragonfly
