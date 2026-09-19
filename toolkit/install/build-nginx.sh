@@ -20,12 +20,22 @@ source "${SCRIPT_DIR}/build-nginx.d/flags.sh"
 
 force=false
 is_upgrade=false
+preinstalled_build_packages=()
 
 need_arg() {
     [[ -n "${2:-}" ]] || {
         log_error "$1 requires a value."
         exit 1
     }
+}
+
+package_was_preinstalled() {
+    local package
+    for package in "${preinstalled_build_packages[@]}"; do
+        [[ "${package}" == "$1" ]] && return 0
+    done
+
+    return 1
 }
 
 backup_existing_nginx() {
@@ -52,6 +62,14 @@ backup_existing_nginx() {
 install_build_dependencies() {
     log_info "Installing nginx build dependencies..."
     apt-get update
+
+    local package status
+    for package in "${BUILD_PACKAGES[@]}"; do
+        if status="$(dpkg-query -W -f='${db:Status-Status}' "${package}" 2>/dev/null)" && [[ "${status}" == installed ]]; then
+            preinstalled_build_packages+=("${package}")
+        fi
+    done
+
     apt-get install -y --no-install-recommends "${BUILD_PACKAGES[@]}" "${BUILD_TOOLS[@]}"
     require_cmd clang cmake git make ninja rsync strip wget
 }
@@ -235,7 +253,21 @@ setup_cloudflare_realip() {
 
 cleanup_build_dependencies() {
     log_info "Removing build-only packages and installing runtime packages..."
-    apt-get remove --auto-remove --purge -y "${BUILD_PACKAGES[@]}" 2>/dev/null || true
+
+    local package
+    local packages_to_remove=()
+    for package in "${BUILD_PACKAGES[@]}"; do
+        if ! package_was_preinstalled "${package}"; then
+            packages_to_remove+=("${package}")
+        fi
+    done
+
+    if ((${#packages_to_remove[@]} > 0)); then
+        apt-get remove --auto-remove --purge -y "${packages_to_remove[@]}" 2>/dev/null || true
+    else
+        log_info "All build packages were already installed; skipping build package removal."
+    fi
+
     apt-get install -y --no-install-recommends "${RUNTIME_PACKAGES[@]}"
 }
 
@@ -267,7 +299,7 @@ while (($# > 0)); do
 done
 
 require_root
-require_cmd apt-get cp date grep id install mv nproc rm systemctl tar useradd
+require_cmd apt-get cp date dpkg-query grep id install mv nproc rm systemctl tar useradd
 
 if [[ ! -f /etc/nginx/nginx.conf ]] && systemctl is-active --quiet nginx 2>/dev/null && [[ "${force}" == false ]]; then
     log_warn "nginx is currently running and will be restarted."
