@@ -234,7 +234,12 @@ sync_tree_to_root() {
         install_managed_file "${src}" "${dest}"
     done < <(find "${FILES_DIR}" -type f -print0 | sort -z)
 
-    if ! "${DRY_RUN}"; then
+    if "${DRY_RUN}"; then
+        if metadata_needs_update /etc/profile.d root:root 755; then
+            log_info 'Would fix metadata for /etc/profile.d (mode 755, owner root:root)'
+        fi
+    else
+        install -d -o root -g root -m 755 /etc/profile.d
         [[ ! -d /etc/pnpm ]] || { chown root:root /etc/pnpm && chmod 755 /etc/pnpm; }
         [[ ! -d /etc/bun ]] || { chown root:root /etc/bun && chmod 755 /etc/bun; }
         [[ ! -d /root/.config ]] || { chown root:root /root/.config && chmod 700 /root/.config; }

@@ -126,7 +126,7 @@ run_optional_toolkit_script() {
 require_cmd apt-get git curl
 
 "${TOOLKIT_DIR}/install/install-base-packages.sh"
-require_cmd basename chmod chown curl find locale-gen rsync sed stat systemctl ufw update-locale
+require_cmd basename chmod chown curl find install locale-gen rsync sed stat systemctl ufw update-locale
 
 read_ssh_port
 log_info "Selected SSH port: ${SSH_PORT}"
@@ -136,6 +136,7 @@ log_info "Selected timezone: ${TIMEZONE}"
 log_info "Installing bootstrap config files..."
 rsync_bootstrap_dir /etc/
 rsync_bootstrap_dir /root/
+install -d -o root -g root -m 755 /etc/profile.d
 chmod 644 /etc/bash.bashrc /etc/profile /etc/npmrc /etc/pnpm/rc /etc/bun/bunfig.toml /etc/profile.d/99-node-security.sh /etc/profile.d/99-security-umask.sh
 chmod 755 /etc/pnpm /etc/bun
 chmod 600 /root/.npmrc /root/.config/pnpm/rc /root/.bunfig.toml
