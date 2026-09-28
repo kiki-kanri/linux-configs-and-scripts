@@ -12,8 +12,8 @@ collation-server = utf8mb4_unicode_ci
 # 拒絕無效或遭截斷的值，避免靜默轉換造成資料錯誤。
 sql-mode = STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION
 
-# Use a fresh committed snapshot for each statement to reduce lock contention.
-# 每個 statement 讀取最新已提交快照，以降低鎖競爭。
+# Reuse the first consistent-read snapshot within a transaction.
+# 同一交易內的一致性讀取沿用首次讀取建立的快照，避免不可重複讀。
 transaction-isolation = REPEATABLE-READ
 
 # Flush the InnoDB redo log at every commit for full transaction durability.
