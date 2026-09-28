@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Fetch Cloudflare IP ranges and generate nginx real_ip config.
+# Fetch Cloudflare IP ranges and generate nginx real_ip and origin-access config.
 
 set -euo pipefail
 
 CF_IPV4_URL="${CF_IPV4_URL:-https://www.cloudflare.com/ips-v4}"
 CF_IPV6_URL="${CF_IPV6_URL:-https://www.cloudflare.com/ips-v6}"
 CF_API_URL="${CF_API_URL:-https://api.cloudflare.com/client/v4/ips}"
-REALIP_DIR="${REALIP_DIR:-/etc/nginx/conf.d}"
-REALIP_CONF="${REALIP_CONF:-${REALIP_DIR}/cloudflare-realip.conf}"
+CLOUDFLARE_DIR="${CLOUDFLARE_DIR:-/etc/nginx/conf.d}"
+CLOUDFLARE_CONF="${CLOUDFLARE_CONF:-${CLOUDFLARE_DIR}/cloudflare-nginx.conf}"
 RELOAD_NGINX="${RELOAD_NGINX:-1}"
 TMP_DIR=""
 
@@ -16,7 +16,7 @@ cleanup() {
 }
 
 log() {
-    printf '[cloudflare-realip] %s\n' "$*"
+    printf '[cloudflare-nginx] %s\n' "$*"
 }
 
 normalize_cidrs() {
@@ -89,38 +89,40 @@ generate_config() {
 
     {
         cat <<CONFIG
-# Managed by update-cloudflare-realip-nginx. Do not edit manually.
+# Managed by update-cloudflare-nginx. Do not edit manually.
 # Sources: ${CF_IPV4_URL}, ${CF_IPV6_URL}, and ${CF_API_URL}
 
 real_ip_header CF-Connecting-IP;
 real_ip_recursive on;
 CONFIG
         sed 's/^/set_real_ip_from /; s/$/;/' "${ipv4_file}" "${ipv6_file}"
+        cat <<'CONFIG'
+
+# Match the original TCP peer, not the visitor IP from CF-Connecting-IP.
+# Use only in opted-in server blocks via public/access/cloudflare-only.conf.
+geo $realip_remote_addr $from_cloudflare {
+    default 0;
+CONFIG
+        sed 's/^/    /; s/$/ 1;/' "${ipv4_file}" "${ipv6_file}"
+        printf '}\n'
     } >"${output_file}"
 }
 
-nginx_available() {
-    command -v nginx >/dev/null 2>&1
-}
-
-validate_nginx_if_available() {
-    nginx_available || return 0
-    nginx -t
-}
-
-reload_nginx_if_available() {
+validate_and_reload_nginx() {
     if [[ "${RELOAD_NGINX}" == "0" || "${RELOAD_NGINX}" == "false" ]]; then
         log "nginx reload disabled by RELOAD_NGINX=${RELOAD_NGINX}."
         return 0
     fi
 
-    nginx_available || {
+    if ! command -v nginx >/dev/null 2>&1; then
         log "nginx not found; generated config only."
         return 0
-    }
+    fi
+
+    nginx -t || return 1
 
     if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
-        systemctl reload nginx
+        systemctl reload nginx || return 1
         log "nginx reloaded."
         return 0
     fi
@@ -128,36 +130,10 @@ reload_nginx_if_available() {
     log "nginx config is valid; service is not active or systemctl unavailable."
 }
 
-install_config_with_rollback() {
-    local new_config="$1"
-    local backup_config="${TMP_DIR}/existing-cloudflare-realip.conf"
-    local had_existing=0
-
-    if [[ -f "${REALIP_CONF}" ]]; then
-        cp -f "${REALIP_CONF}" "${backup_config}"
-        had_existing=1
-    fi
-
-    install -m 644 "${new_config}" "${REALIP_CONF}"
-
-    if [[ "${RELOAD_NGINX}" == "0" || "${RELOAD_NGINX}" == "false" ]]; then
-        return 0
-    fi
-
-    if ! validate_nginx_if_available; then
-        log "nginx config validation failed after installing ${REALIP_CONF}; rolling back."
-        if ((had_existing)); then
-            install -m 644 "${backup_config}" "${REALIP_CONF}"
-        else
-            rm -f "${REALIP_CONF}"
-        fi
-
-        validate_nginx_if_available || true
-        exit 1
-    fi
-}
-
 main() {
+    local had_existing=0
+    local previous_config
+
     command -v curl >/dev/null 2>&1 || {
         log "curl is required."
         exit 1
@@ -193,17 +169,32 @@ main() {
     verify_sources_match "${TMP_DIR}/ips-v4.normalized" "${TMP_DIR}/api-ips-v4.normalized" IPv4
     verify_sources_match "${TMP_DIR}/ips-v6.normalized" "${TMP_DIR}/api-ips-v6.normalized" IPv6
 
-    generate_config "${TMP_DIR}/ips-v4.normalized" "${TMP_DIR}/ips-v6.normalized" "${TMP_DIR}/cloudflare-realip.conf"
+    generate_config "${TMP_DIR}/ips-v4.normalized" "${TMP_DIR}/ips-v6.normalized" "${TMP_DIR}/cloudflare-nginx.conf"
 
-    install -d -m 755 "${REALIP_DIR}"
-    if [[ -f "${REALIP_CONF}" ]] && cmp -s "${TMP_DIR}/cloudflare-realip.conf" "${REALIP_CONF}"; then
-        log "Cloudflare real_ip config already up to date: ${REALIP_CONF}"
+    install -d -m 755 "${CLOUDFLARE_DIR}"
+    if [[ -f "${CLOUDFLARE_CONF}" ]] && cmp -s "${TMP_DIR}/cloudflare-nginx.conf" "${CLOUDFLARE_CONF}"; then
+        log "Cloudflare nginx config already up to date: ${CLOUDFLARE_CONF}"
         return 0
     fi
 
-    install_config_with_rollback "${TMP_DIR}/cloudflare-realip.conf"
-    log "Installed Cloudflare real_ip config: ${REALIP_CONF}"
-    reload_nginx_if_available
+    previous_config="${TMP_DIR}/previous-cloudflare-nginx.conf"
+    if [[ -f "${CLOUDFLARE_CONF}" ]]; then
+        cp -f "${CLOUDFLARE_CONF}" "${previous_config}"
+        had_existing=1
+    fi
+
+    if ! install -m 644 "${TMP_DIR}/cloudflare-nginx.conf" "${CLOUDFLARE_CONF}" || ! validate_and_reload_nginx; then
+        if ((had_existing)); then
+            install -m 644 "${previous_config}" "${CLOUDFLARE_CONF}"
+        else
+            rm -f "${CLOUDFLARE_CONF}"
+        fi
+
+        log "Cloudflare nginx update failed; config reverted."
+        return 1
+    fi
+
+    log "Installed Cloudflare nginx config: ${CLOUDFLARE_CONF}"
 }
 
 main "$@"

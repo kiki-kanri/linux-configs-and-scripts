@@ -239,16 +239,16 @@ setup_logrotate() {
     "${setup_script}" || log_warn "nginx logrotate setup failed; run ${setup_script} manually."
 }
 
-setup_cloudflare_realip() {
-    local setup_script="${REPO_ROOT}/toolkit/service/setup-cloudflare-realip-nginx.sh"
+setup_cloudflare_nginx() {
+    local setup_script="${REPO_ROOT}/toolkit/service/setup-cloudflare-nginx.sh"
 
     if [[ ! -x "${setup_script}" ]]; then
-        log_warn "Cloudflare real IP setup script not found; skipping."
+        log_warn "Cloudflare nginx setup script not found; skipping."
         return 0
     fi
 
-    log_info "Setting up Cloudflare real IP auto-update for nginx..."
-    "${setup_script}" || log_warn "Cloudflare real IP auto-update setup failed; run ${setup_script} manually."
+    log_info "Setting up Cloudflare IP range auto-update for nginx..."
+    "${setup_script}" || log_warn "Cloudflare nginx auto-update setup failed; run ${setup_script} manually."
 }
 
 cleanup_build_dependencies() {
@@ -315,6 +315,6 @@ configure_and_build_nginx
 cleanup_build_dependencies
 finish_install
 setup_logrotate
-setup_cloudflare_realip
+setup_cloudflare_nginx
 rm -rf "${TMP_DIR}"
 verify_install

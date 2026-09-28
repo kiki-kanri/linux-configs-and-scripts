@@ -45,6 +45,7 @@ refresh_nginx_public_snippets() {
     local ssl_src="${REPO_ROOT}/toolkit/conf/nginx/public/ssls/example.conf"
     local ssl_dest="/etc/nginx/public/ssls/example.conf"
 
+    copy_nginx_public_dir access
     copy_nginx_public_dir headers
     copy_nginx_public_dir locations
     copy_nginx_public_dir proxies
@@ -83,7 +84,7 @@ fi
 
 if nginx_is_installed; then
     run_script "${REPO_ROOT}/toolkit/service/setup-logrotate-nginx.sh"
-    run_script "${REPO_ROOT}/toolkit/service/setup-cloudflare-realip-nginx.sh"
+    run_script "${REPO_ROOT}/toolkit/service/setup-cloudflare-nginx.sh"
     refresh_nginx_public_snippets
 else
     log_info "nginx not found; skipping Cloudflare real IP setup and nginx public snippet refresh."

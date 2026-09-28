@@ -1,5 +1,8 @@
 server {
     # Include configs
+
+    # Uncomment to reject requests that bypass Cloudflare (requires real IP setup).
+    # include public/access/cloudflare-only.conf;
     include public/headers/default.conf;
     include public/ssls/example.conf;
 
