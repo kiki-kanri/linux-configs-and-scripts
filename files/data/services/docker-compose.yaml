@@ -1,6 +1,9 @@
 name: services
 
 include:
+  # ClickHouse
+  - ./stacks/clickhouse/main/compose.yaml
+
   # Dragonfly
   - ./stacks/dragonfly/main/compose.yaml
 

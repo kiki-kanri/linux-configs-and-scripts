@@ -1,0 +1,35 @@
+secrets:
+  CLICKHOUSE_MAIN_PASSWORD:
+    environment: CLICKHOUSE_MAIN_PASSWORD
+
+services:
+  clickhouse-main:
+    container_name: clickhouse-main
+    environment:
+      CLICKHOUSE_DB: '${CLICKHOUSE_MAIN_DATABASE:?must be set}'
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/CLICKHOUSE_MAIN_PASSWORD
+      CLICKHOUSE_USER: '${CLICKHOUSE_MAIN_USER:?must be set}'
+      TZ: UTC
+    image: 'clickhouse/clickhouse-server:latest'
+    logging:
+      driver: json-file
+      options:
+        max-file: '5'
+        max-size: 10m
+    ports:
+      - '${CLICKHOUSE_MAIN_EXPOSE_HOST:?must be set}:${CLICKHOUSE_MAIN_HTTP_EXPOSE_PORT:?must be set}:8123'
+      - '${CLICKHOUSE_MAIN_EXPOSE_HOST:?must be set}:${CLICKHOUSE_MAIN_NATIVE_EXPOSE_PORT:?must be set}:9000'
+    restart: always
+    secrets:
+      - CLICKHOUSE_MAIN_PASSWORD
+    stop_grace_period: 1m
+    ulimits:
+      nofile:
+        hard: 262144
+        soft: 262144
+    volumes:
+      - '${CLICKHOUSE_MAIN_BACKUPS_PATH:?must be set}:/mnt/backups'
+      - '${CLICKHOUSE_MAIN_FILES_PATH:?must be set}:/var/lib/clickhouse'
+      - '${CLICKHOUSE_MAIN_LOGS_PATH:?must be set}:/var/log/clickhouse-server'
+      - ./config.d/backups.xml:/etc/clickhouse-server/config.d/backups.xml:ro
