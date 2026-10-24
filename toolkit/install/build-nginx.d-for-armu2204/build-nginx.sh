@@ -71,7 +71,7 @@ install_build_dependencies() {
     done
 
     apt-get install -y --no-install-recommends "${BUILD_PACKAGES[@]}" "${BUILD_TOOLS[@]}"
-    require_cmd clang git make rsync strip wget
+    require_cmd clang cmake git make ninja rsync strip wget
 }
 
 prepare_sources() {
@@ -85,6 +85,32 @@ prepare_sources() {
         IFS="|" read -r module_name repo_url <<<"${module}"
         git clone --recurse-submodules "${repo_url}" "${TMP_DIR}/${module_name}"
     done
+}
+
+build_brotli() {
+    local brotli_src="${TMP_DIR}/ngx_brotli/deps/brotli"
+    local build_dir="${brotli_src}/out"
+
+    log_info "Preparing Brotli ${BROTLI_VERSION}..."
+    git -C "${brotli_src}" fetch --depth=1 origin "refs/tags/v${BROTLI_VERSION}"
+    git -C "${brotli_src}" checkout --detach FETCH_HEAD
+
+    log_info "Building Brotli..."
+    rm -rf "${build_dir}"
+    install -d -m 755 "${build_dir}"
+
+    cmake \
+        -S "${brotli_src}" \
+        -B "${build_dir}" \
+        -GNinja \
+        -DBROTLI_BUILD_TOOLS=OFF \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_FLAGS_RELEASE="${BROTLI_CFLAGS[*]}" \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+
+    ninja -C "${build_dir}" -j"$(nproc)" brotlienc brotlicommon
+    log_success "Brotli ${BROTLI_VERSION} built."
 }
 
 download_nginx() {
@@ -282,6 +308,7 @@ fi
 backup_existing_nginx
 install_build_dependencies
 prepare_sources
+build_brotli
 download_nginx
 configure_and_build_nginx
 cleanup_build_dependencies

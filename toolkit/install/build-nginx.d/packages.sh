@@ -5,7 +5,6 @@
 BUILD_PACKAGES=(
     clang
     cmake
-    libbrotli-dev
     libgeoip-dev
     libmaxminddb-dev
     libpcre2-dev
@@ -31,7 +30,6 @@ BUILD_TOOLS=(
 RUNTIME_PACKAGES=(
     geoip-bin
     geoip-database
-    libbrotli1
     libgeoip1
     libmaxminddb0
     libpcre2-8-0

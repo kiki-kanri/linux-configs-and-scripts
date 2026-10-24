@@ -2,6 +2,18 @@
 # Compiler and linker flags for build-nginx.sh.
 # shellcheck disable=SC2034
 
+BROTLI_CFLAGS=(
+    -DNDEBUG
+    -fdata-sections
+    -ffunction-sections
+    -fomit-frame-pointer
+    -fPIC
+    -fstack-protector-strong
+    -fstrict-aliasing
+    -mcpu=native
+    -O3
+)
+
 NGINX_CC_OPT=(
     -fdata-sections
     -ffunction-sections

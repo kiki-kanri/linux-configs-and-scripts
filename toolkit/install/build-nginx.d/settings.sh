@@ -3,6 +3,7 @@
 # shellcheck disable=SC2034
 
 NGINX_VERSION="${NGINX_VERSION:-1.30.6}"
+BROTLI_VERSION="${BROTLI_VERSION:-1.2.1}"
 TMP_DIR="/tmp/build-nginx"
 QUICTLS_DIR="/opt/quictls-for-nginx"
 NGINX_BACKUP_DIR="/etc/nginx.bak"
