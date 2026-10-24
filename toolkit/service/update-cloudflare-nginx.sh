@@ -1,22 +1,34 @@
 #!/usr/bin/env bash
+
 # Fetch Cloudflare IP ranges and generate nginx real_ip and origin-access config.
 
 set -euo pipefail
 
-CF_IPV4_URL="${CF_IPV4_URL:-https://www.cloudflare.com/ips-v4}"
-CF_IPV6_URL="${CF_IPV6_URL:-https://www.cloudflare.com/ips-v6}"
-CF_API_URL="${CF_API_URL:-https://api.cloudflare.com/client/v4/ips}"
-CLOUDFLARE_DIR="${CLOUDFLARE_DIR:-/etc/nginx/conf.d}"
-CLOUDFLARE_CONF="${CLOUDFLARE_CONF:-${CLOUDFLARE_DIR}/cloudflare-nginx.conf}"
-RELOAD_NGINX="${RELOAD_NGINX:-1}"
-TMP_DIR=""
+# Constants/Variables
+readonly CF_API_URL="${CF_API_URL:-https://api.cloudflare.com/client/v4/ips}"
+readonly CF_IPV4_URL="${CF_IPV4_URL:-https://www.cloudflare.com/ips-v4}"
+readonly CF_IPV6_URL="${CF_IPV6_URL:-https://www.cloudflare.com/ips-v6}"
+readonly CLOUDFLARE_DIR="${CLOUDFLARE_DIR:-/etc/nginx/conf.d}"
+readonly CLOUDFLARE_CONF="${CLOUDFLARE_CONF:-${CLOUDFLARE_DIR}/cloudflare-nginx.conf}"
+readonly RELOAD_NGINX="${RELOAD_NGINX:-1}"
 
-cleanup() {
-    [[ -z "${TMP_DIR}" ]] || rm -rf "${TMP_DIR}"
+# Functions
+
+# Installed as a standalone file under /usr/local/sbin; repo libraries are unavailable.
+log_info() {
+    printf '[cloudflare-nginx] INFO: %s\n' "$*"
 }
 
-log() {
-    printf '[cloudflare-nginx] %s\n' "$*"
+log_success() {
+    printf '[cloudflare-nginx] SUCCESS: %s\n' "$*"
+}
+
+log_warn() {
+    printf '[cloudflare-nginx] WARN: %s\n' "$*" >&2
+}
+
+log_error() {
+    printf '[cloudflare-nginx] ERROR: %s\n' "$*" >&2
 }
 
 normalize_cidrs() {
@@ -76,8 +88,9 @@ verify_sources_match() {
     local label="$3"
 
     if ! cmp -s "${list_file}" "${api_file}"; then
-        log "Cloudflare ${label} range mismatch between text endpoint and API endpoint."
-        diff -u "${list_file}" "${api_file}" || true
+        log_error "Cloudflare ${label} ranges differ between text and API sources"
+        # A nonzero diff status is expected; retain the explicit failure status below.
+        diff -u "${list_file}" "${api_file}" >&2 || true
         exit 1
     fi
 }
@@ -109,13 +122,15 @@ CONFIG
 }
 
 validate_and_reload_nginx() {
-    if [[ "${RELOAD_NGINX}" == "0" || "${RELOAD_NGINX}" == "false" ]]; then
-        log "nginx reload disabled by RELOAD_NGINX=${RELOAD_NGINX}."
+    local force_reload="${1:-false}"
+
+    if [[ "${force_reload}" == false && ("${RELOAD_NGINX}" == '0' || "${RELOAD_NGINX}" == 'false') ]]; then
+        log_info "NGINX reload disabled; RELOAD_NGINX: ${RELOAD_NGINX}"
         return 0
     fi
 
     if ! command -v nginx >/dev/null 2>&1; then
-        log "nginx not found; generated config only."
+        log_warn 'NGINX is unavailable; generated configuration only'
         return 0
     fi
 
@@ -123,78 +138,95 @@ validate_and_reload_nginx() {
 
     if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
         systemctl reload nginx || return 1
-        log "nginx reloaded."
+        log_success 'NGINX reloaded'
         return 0
     fi
 
-    log "nginx config is valid; service is not active or systemctl unavailable."
+    log_info 'NGINX configuration is valid; service is inactive or systemctl is unavailable'
 }
 
-main() {
+# Run
+main() (
+    local force_reload=false
     local had_existing=0
     local previous_config
+    local tmp_dir
+    local command_name
 
-    command -v curl >/dev/null 2>&1 || {
-        log "curl is required."
-        exit 1
-    }
+    while (($# > 0)); do
+        case "$1" in
+        --force-reload)
+            force_reload=true
+            shift
+            ;;
+        -*)
+            log_error "Unknown option: $1"
+            return 1
+            ;;
+        *)
+            log_error "Unexpected argument: $1"
+            return 1
+            ;;
+        esac
+    done
 
-    command -v python3 >/dev/null 2>&1 || {
-        log "python3 is required."
-        exit 1
-    }
+    for command_name in curl python3 install; do
+        command -v "${command_name}" >/dev/null 2>&1 || {
+            log_error "Required command not found: ${command_name}"
+            return 1
+        }
+    done
 
-    command -v install >/dev/null 2>&1 || {
-        log "install is required."
-        exit 1
-    }
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf -- "${tmp_dir}"' EXIT
 
-    TMP_DIR="$(mktemp -d)"
-    trap cleanup EXIT
+    log_info 'Fetching Cloudflare IPv4 ranges...'
+    curl -fsSL --retry 3 --connect-timeout 10 --output "${tmp_dir}/ips-v4" "${CF_IPV4_URL}"
 
-    log "Fetching Cloudflare IPv4 ranges..."
-    curl -fsSL --retry 3 --connect-timeout 10 --output "${TMP_DIR}/ips-v4" "${CF_IPV4_URL}"
+    log_info 'Fetching Cloudflare IPv6 ranges...'
+    curl -fsSL --retry 3 --connect-timeout 10 --output "${tmp_dir}/ips-v6" "${CF_IPV6_URL}"
 
-    log "Fetching Cloudflare IPv6 ranges..."
-    curl -fsSL --retry 3 --connect-timeout 10 --output "${TMP_DIR}/ips-v6" "${CF_IPV6_URL}"
+    log_info 'Fetching Cloudflare API IP ranges...'
+    curl -fsSL --retry 3 --connect-timeout 10 --output "${tmp_dir}/api-ips.json" "${CF_API_URL}"
 
-    log "Fetching Cloudflare API IP ranges..."
-    curl -fsSL --retry 3 --connect-timeout 10 --output "${TMP_DIR}/api-ips.json" "${CF_API_URL}"
+    extract_api_cidrs "${tmp_dir}/api-ips.json" "${tmp_dir}/api-ips-v4" "${tmp_dir}/api-ips-v6"
+    normalize_cidrs "${tmp_dir}/ips-v4" "${tmp_dir}/ips-v4.normalized"
+    normalize_cidrs "${tmp_dir}/ips-v6" "${tmp_dir}/ips-v6.normalized"
+    normalize_cidrs "${tmp_dir}/api-ips-v4" "${tmp_dir}/api-ips-v4.normalized"
+    normalize_cidrs "${tmp_dir}/api-ips-v6" "${tmp_dir}/api-ips-v6.normalized"
+    verify_sources_match "${tmp_dir}/ips-v4.normalized" "${tmp_dir}/api-ips-v4.normalized" IPv4
+    verify_sources_match "${tmp_dir}/ips-v6.normalized" "${tmp_dir}/api-ips-v6.normalized" IPv6
 
-    extract_api_cidrs "${TMP_DIR}/api-ips.json" "${TMP_DIR}/api-ips-v4" "${TMP_DIR}/api-ips-v6"
-    normalize_cidrs "${TMP_DIR}/ips-v4" "${TMP_DIR}/ips-v4.normalized"
-    normalize_cidrs "${TMP_DIR}/ips-v6" "${TMP_DIR}/ips-v6.normalized"
-    normalize_cidrs "${TMP_DIR}/api-ips-v4" "${TMP_DIR}/api-ips-v4.normalized"
-    normalize_cidrs "${TMP_DIR}/api-ips-v6" "${TMP_DIR}/api-ips-v6.normalized"
-    verify_sources_match "${TMP_DIR}/ips-v4.normalized" "${TMP_DIR}/api-ips-v4.normalized" IPv4
-    verify_sources_match "${TMP_DIR}/ips-v6.normalized" "${TMP_DIR}/api-ips-v6.normalized" IPv6
-
-    generate_config "${TMP_DIR}/ips-v4.normalized" "${TMP_DIR}/ips-v6.normalized" "${TMP_DIR}/cloudflare-nginx.conf"
+    generate_config "${tmp_dir}/ips-v4.normalized" "${tmp_dir}/ips-v6.normalized" "${tmp_dir}/cloudflare-nginx.conf"
 
     install -d -m 755 "${CLOUDFLARE_DIR}"
-    if [[ -f "${CLOUDFLARE_CONF}" ]] && cmp -s "${TMP_DIR}/cloudflare-nginx.conf" "${CLOUDFLARE_CONF}"; then
-        log "Cloudflare nginx config already up to date: ${CLOUDFLARE_CONF}"
+    if [[ -f "${CLOUDFLARE_CONF}" ]] && cmp -s "${tmp_dir}/cloudflare-nginx.conf" "${CLOUDFLARE_CONF}"; then
+        log_info "Cloudflare NGINX configuration is already up to date: ${CLOUDFLARE_CONF}"
+        if [[ "${force_reload}" == true ]]; then
+            validate_and_reload_nginx "${force_reload}"
+        fi
+
         return 0
     fi
 
-    previous_config="${TMP_DIR}/previous-cloudflare-nginx.conf"
+    previous_config="${tmp_dir}/previous-cloudflare-nginx.conf"
     if [[ -f "${CLOUDFLARE_CONF}" ]]; then
         cp -f "${CLOUDFLARE_CONF}" "${previous_config}"
         had_existing=1
     fi
 
-    if ! install -m 644 "${TMP_DIR}/cloudflare-nginx.conf" "${CLOUDFLARE_CONF}" || ! validate_and_reload_nginx; then
+    if ! install -m 644 "${tmp_dir}/cloudflare-nginx.conf" "${CLOUDFLARE_CONF}" || ! validate_and_reload_nginx "${force_reload}"; then
         if ((had_existing)); then
             install -m 644 "${previous_config}" "${CLOUDFLARE_CONF}"
         else
             rm -f "${CLOUDFLARE_CONF}"
         fi
 
-        log "Cloudflare nginx update failed; config reverted."
+        log_error 'Cloudflare NGINX update failed; configuration reverted'
         return 1
     fi
 
-    log "Installed Cloudflare nginx config: ${CLOUDFLARE_CONF}"
-}
+    log_success "Cloudflare NGINX configuration installed: ${CLOUDFLARE_CONF}"
+)
 
 main "$@"

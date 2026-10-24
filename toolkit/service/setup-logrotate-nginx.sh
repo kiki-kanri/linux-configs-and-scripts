@@ -1,49 +1,50 @@
 #!/usr/bin/env bash
+
+# shellcheck disable=SC1091
+
 # Install logrotate policy for nginx access and error logs.
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
 # Constants/Variables
-LOGROTATE_SRC="${REPO_ROOT}/toolkit/conf/logrotate.d/nginx"
-LOGROTATE_DEST="/etc/logrotate.d/nginx"
-NGINX_LOG_DIR="/var/log/nginx"
+readonly LOGROTATE_SRC="${REPO_ROOT}/toolkit/conf/logrotate.d/nginx"
+readonly LOGROTATE_DEST='/etc/logrotate.d/nginx'
+readonly NGINX_LOG_DIR='/var/log/nginx'
 
 # Functions
 install_logrotate_if_missing() {
     command_exists logrotate && return 0
 
-    require_cmd apt-get
-    log_info "Installing logrotate..."
+    log_info 'Installing logrotate...'
     apt-get update
     apt-get install -y --no-install-recommends logrotate
 }
 
 # Run
-if (($# > 0)); then
-    log_error "Unexpected argument: $1"
-    exit 1
-fi
+main() {
+    require_root
+    require_cmd install
+    require_file "${LOGROTATE_SRC}"
 
-require_root
-require_cmd install
-require_file "${LOGROTATE_SRC}"
+    install_logrotate_if_missing
 
-install_logrotate_if_missing
+    log_info "Installing NGINX logrotate policy: ${LOGROTATE_DEST}..."
+    install -d -m 755 "${NGINX_LOG_DIR}"
+    install_file "${LOGROTATE_SRC}" "${LOGROTATE_DEST}" 644
 
-log_info "Installing nginx logrotate policy: ${LOGROTATE_DEST}"
-install -d -m 755 "${NGINX_LOG_DIR}"
-install_file "${LOGROTATE_SRC}" "${LOGROTATE_DEST}" 644
-
-if command_exists logrotate; then
-    log_info "Validating logrotate policy..."
-    if ! logrotate -d "${LOGROTATE_DEST}" >/dev/null 2>&1; then
+    local validation_output
+    log_info 'Validating logrotate policy...'
+    if ! validation_output="$(logrotate -d "${LOGROTATE_DEST}" 2>&1)"; then
         log_error "logrotate policy validation failed: ${LOGROTATE_DEST}"
-        logrotate -d "${LOGROTATE_DEST}" >&2 || true
-        exit 1
+        printf '%s\n' "${validation_output}" >&2
+        return 1
     fi
-fi
 
-log_success "nginx logrotate policy installed."
+    log_success 'NGINX logrotate policy installed'
+}
+
+main "$@"
