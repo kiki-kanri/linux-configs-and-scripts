@@ -6,6 +6,7 @@ set -euo pipefail
 # shellcheck disable=SC1091
 source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
+# Constants/Variables
 UPDATER_NAME="update-cloudflare-nginx"
 SERVICE_NAME="cloudflare-nginx-update.service"
 TIMER_NAME="cloudflare-nginx-update.timer"
@@ -21,6 +22,7 @@ OLD_TIMER="cloudflare-realip-nginx-update.timer"
 OLD_UPDATER="/usr/local/sbin/update-cloudflare-realip-nginx"
 OLD_CONF="${NGINX_CONF_DIR}/cloudflare-realip.conf"
 
+# Run
 if (($# > 0)); then
     log_error "Unexpected argument: $1"
     exit 1

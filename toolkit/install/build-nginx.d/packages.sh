@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Package groups for build-nginx.sh.
+
 # shellcheck disable=SC2034
 
-BUILD_PACKAGES=(
+# Package groups for build-nginx.sh.
+
+# Constants/Variables
+readonly -a BUILD_PACKAGES=(
     clang
     cmake
     libgeoip-dev
@@ -15,7 +18,7 @@ BUILD_PACKAGES=(
     zlib1g-dev
 )
 
-BUILD_TOOLS=(
+readonly -a BUILD_TOOLS=(
     binutils
     g++
     gcc
@@ -27,7 +30,7 @@ BUILD_TOOLS=(
     wget
 )
 
-RUNTIME_PACKAGES=(
+readonly -a RUNTIME_PACKAGES=(
     geoip-bin
     geoip-database
     libgeoip1

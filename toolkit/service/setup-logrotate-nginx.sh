@@ -6,10 +6,12 @@ set -euo pipefail
 # shellcheck disable=SC1091
 source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
 
+# Constants/Variables
 LOGROTATE_SRC="${REPO_ROOT}/toolkit/conf/logrotate.d/nginx"
 LOGROTATE_DEST="/etc/logrotate.d/nginx"
 NGINX_LOG_DIR="/var/log/nginx"
 
+# Functions
 install_logrotate_if_missing() {
     command_exists logrotate && return 0
 
@@ -19,6 +21,7 @@ install_logrotate_if_missing() {
     apt-get install -y --no-install-recommends logrotate
 }
 
+# Run
 if (($# > 0)); then
     log_error "Unexpected argument: $1"
     exit 1

@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Compiler and linker flags for build-nginx.sh.
+
 # shellcheck disable=SC2034
 
-BROTLI_CFLAGS=(
+# Compiler and linker flags for build-nginx.sh.
+
+# Constants/Variables
+readonly -a BROTLI_CFLAGS=(
+    -U_FORTIFY_SOURCE
+    -D_FORTIFY_SOURCE=2
     -DNDEBUG
     -fdata-sections
     -ffunction-sections
@@ -15,7 +20,9 @@ BROTLI_CFLAGS=(
     -O3
 )
 
-NGINX_CC_OPT=(
+readonly -a NGINX_CFLAGS=(
+    -U_FORTIFY_SOURCE
+    -D_FORTIFY_SOURCE=2
     -fdata-sections
     -ffunction-sections
     -flto=thin
@@ -32,22 +39,25 @@ NGINX_CC_OPT=(
     -Wformat
 )
 
-NGINX_LD_OPT=(
+readonly -a NGINX_LDFLAGS=(
     -flto=thin
     -fuse-ld=lld
     -L"${QUICTLS_DIR}/build"
     -ldl
     -lpthread
-    "-Wl,--as-needed"
-    "-Wl,--gc-sections"
-    "-Wl,-E"
-    "-Wl,-O2"
+    '-Wl,--as-needed'
+    '-Wl,--gc-sections'
+    '-Wl,-E'
+    '-Wl,-O2'
     "-Wl,-rpath,${QUICTLS_DIR}/build"
-    "-Wl,-z,now"
-    "-Wl,-z,relro"
+    '-Wl,-z,noexecstack'
+    '-Wl,-z,now'
+    '-Wl,-z,relro'
 )
 
-QUICTLS_CFLAGS=(
+readonly -a QUICTLS_CFLAGS=(
+    -U_FORTIFY_SOURCE
+    -D_FORTIFY_SOURCE=2
     -fdata-sections
     -ffunction-sections
     -fomit-frame-pointer
@@ -61,4 +71,8 @@ QUICTLS_CFLAGS=(
     -pthread
 )
 
-QUICTLS_LDFLAGS=()
+readonly -a QUICTLS_LDFLAGS=(
+    '-Wl,-z,noexecstack'
+    '-Wl,-z,now'
+    '-Wl,-z,relro'
+)
