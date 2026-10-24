@@ -98,29 +98,13 @@ build_quictls() {
     rm -rf "${build_dir}"
     install -d -m 755 "${build_dir}"
 
-    # Let CMake select and validate its compiler before probing optional flags.
     cmake \
         -S "${QUICTLS_DIR}" \
         -B "${build_dir}" \
         -GNinja \
         -DOPENSSL_NO_TESTS=ON \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
-
-    local quictls_cc
-    quictls_cc="$(sed -n 's/^CMAKE_C_COMPILER:FILEPATH=//p' "${build_dir}/CMakeCache.txt")"
-    if [[ -z "${quictls_cc}" ]]; then
-        log_error "Cannot determine the QuicTLS C compiler from CMakeCache.txt."
-        return 1
-    fi
-
-    local compiler_args=()
-    read -r -a compiler_args <<<"$(sed -n 's/^CMAKE_C_COMPILER_ARG1:STRING=//p' "${build_dir}/CMakeCache.txt")"
-    filter_optional_compiler_flags QUICTLS_CFLAGS "${quictls_cc}" "${compiler_args[@]}"
-
-    cmake \
-        -S "${QUICTLS_DIR}" \
-        -B "${build_dir}" \
+        -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
         -DCMAKE_C_FLAGS_RELEASE="${QUICTLS_CFLAGS[*]}" \
         -DCMAKE_CXX_FLAGS_RELEASE="${QUICTLS_CFLAGS[*]}" \
         -DCMAKE_EXE_LINKER_FLAGS_RELEASE="${QUICTLS_LDFLAGS[*]}" \
@@ -315,7 +299,7 @@ while (($# > 0)); do
 done
 
 require_root
-require_cmd apt-get cp date dpkg-query grep id install mv nproc rm sed systemctl tar useradd
+require_cmd apt-get cp date dpkg-query grep id install mv nproc rm systemctl tar useradd
 
 if [[ ! -f /etc/nginx/nginx.conf ]] && systemctl is-active --quiet nginx 2>/dev/null && [[ "${force}" == false ]]; then
     log_warn "nginx is currently running and will be restarted."
@@ -324,7 +308,6 @@ fi
 
 backup_existing_nginx
 install_build_dependencies
-filter_optional_compiler_flags NGINX_CC_OPT clang
 prepare_sources
 build_quictls
 download_nginx
