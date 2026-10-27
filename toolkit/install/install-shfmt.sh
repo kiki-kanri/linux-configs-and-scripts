@@ -1,97 +1,62 @@
 #!/usr/bin/env bash
-# Install or update shfmt from the latest mvdan/sh GitHub release.
+
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
-SHFMT_BIN="${SHFMT_BIN:-/usr/local/bin/shfmt}"
-SHFMT_REPO="${SHFMT_REPO:-mvdan/sh}"
-SHFMT_VERSION="${SHFMT_VERSION:-latest}"
-SHFMT_FALLBACK_VERSION="${SHFMT_FALLBACK_VERSION:-3.13.1}"
-SHFMT_GITHUB_API_URL="${SHFMT_GITHUB_API_URL:-https://api.github.com/repos/${SHFMT_REPO}}"
-SHFMT_DOWNLOAD_BASE_URL="${SHFMT_DOWNLOAD_BASE_URL:-https://github.com/${SHFMT_REPO}/releases/download}"
+# Constants/Variables
+readonly RELEASE_API='https://api.github.com/repos/mvdan/sh/releases/latest'
+readonly SHFMT_BIN='/usr/local/bin/shfmt'
 
-curl_args=(
-    --fail
-    --location
-    --show-error
-    --silent
-    --connect-timeout 15
-    --max-time 180
-    --retry 5
-    --retry-delay 2
-    --retry-max-time 300
-)
+# Run
+main() (
+    local arch work_dir version filename asset url checksum
 
-tmp_file=""
-
-curl_fetch() {
-    curl "${curl_args[@]}" "$@"
-}
-
-latest_shfmt_version() {
-    curl_fetch "${SHFMT_GITHUB_API_URL}/releases/latest" |
-        jq -r '.tag_name' |
-        sed 's/^v//'
-}
-
-resolve_shfmt_version() {
-    local version="${SHFMT_VERSION}"
-
-    if [[ "${version}" != "latest" ]]; then
-        printf '%s\n' "${version#v}"
-        return 0
-    fi
-
-    if version="$(latest_shfmt_version)" && [[ -n "${version}" && "${version}" != "null" ]]; then
-        printf '%s\n' "${version}"
-        return 0
-    fi
-
-    log_warn "Unable to resolve latest shfmt release; falling back to v${SHFMT_FALLBACK_VERSION}."
-    printf '%s\n' "${SHFMT_FALLBACK_VERSION#v}"
-}
-
-shfmt_architecture() {
-    case "$(detect_architecture)" in
-    x86_64) printf 'amd64\n' ;;
-    aarch64) printf 'arm64\n' ;;
-    esac
-}
-
-cleanup() {
-    [[ -z "${tmp_file}" ]] || rm -f -- "${tmp_file}"
-}
-
-install_shfmt() {
-    local arch
-    local version
-    local url
-
-    require_cmd curl install jq mktemp sed
-
-    [[ "${SHFMT_VERSION}" != "latest" ]] || log_info "Resolving latest shfmt release..."
-    version="$(resolve_shfmt_version)"
-    if [[ -z "${version}" || "${version}" == "null" ]]; then
-        log_error "Unable to resolve shfmt version."
+    require_root
+    if [[ "$(uname -s)" != 'Linux' ]]; then
+        log_error 'Only Linux is supported'
         exit 1
     fi
 
-    arch="$(shfmt_architecture)"
-    url="${SHFMT_DOWNLOAD_BASE_URL}/v${version}/shfmt_v${version}_linux_${arch}"
-    tmp_file="$(mktemp)"
-    trap cleanup EXIT
+    case "$(detect_architecture)" in
+    x86_64) arch='amd64' ;;
+    aarch64) arch='arm64' ;;
+    *) exit 1 ;;
+    esac
 
-    log_info "Downloading shfmt v${version} (${arch})..."
-    curl_fetch "${url}" -o "${tmp_file}"
+    require_cmd curl jq sha256sum install
 
-    log_info "Installing shfmt to ${SHFMT_BIN}..."
-    install -m 755 "${tmp_file}" "${SHFMT_BIN}"
+    work_dir="$(mktemp -d)"
+    trap 'rm -rf -- "${work_dir}"' EXIT
 
-    log_success "shfmt installed: $(${SHFMT_BIN} --version)"
-}
+    log_info 'Resolving latest shfmt release...'
+    curl -fsSL "${RELEASE_API}" -o "${work_dir}/release.json"
+    version="$(jq -er '.tag_name | select(test("^v[0-9]+[.][0-9]+[.][0-9]+$"))' "${work_dir}/release.json")"
+    filename="shfmt_${version}_linux_${arch}"
+    asset="$(jq -er --arg name "${filename}" '
+        .assets[] | select(.name == $name)
+        | select((.digest // "") | test("^sha256:[0-9a-f]{64}$"))
+        | [.browser_download_url, (.digest | ltrimstr("sha256:"))] | @tsv
+    ' "${work_dir}/release.json")" || {
+        log_error "Release asset or SHA-256 not found: ${filename}"
+        exit 1
+    }
 
-require_root
-install_shfmt
+    read -r url checksum <<<"${asset}"
+
+    log_info "Downloading shfmt ${version} for Linux ${arch}..."
+    curl -fsSL "${url}" -o "${work_dir}/${filename}"
+    (cd "${work_dir}" && printf '%s  %s\n' "${checksum}" "${filename}" | sha256sum -c -)
+
+    log_info "Installing shfmt to: ${SHFMT_BIN}..."
+    install -D -o root -g root -m 755 "${work_dir}/${filename}" "${SHFMT_BIN}"
+    version="$("${SHFMT_BIN}" --version)"
+    log_success "shfmt installed: ${version}"
+)
+
+main "$@"

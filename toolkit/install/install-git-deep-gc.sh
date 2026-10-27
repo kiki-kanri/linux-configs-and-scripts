@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
-# Install the parallel recursive Git deep-GC helper.
+
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
-GIT_DEEP_GC_BIN="/usr/local/bin/git-deep-gc"
-GIT_DEEP_GC_SRC="${REPO_ROOT}/toolkit/bin/git-deep-gc"
+# Constants/Variables
+readonly SOURCE_FILE="${REPO_ROOT}/toolkit/bin/git-deep-gc"
+readonly DEST_FILE='/usr/local/bin/git-deep-gc'
 
-require_root
-require_cmd basename chmod chown cp dirname find git mktemp nproc rm
-require_file "${GIT_DEEP_GC_SRC}"
+# Run
+main() {
+    require_root
 
-log_info "Installing git-deep-gc helper..."
-rm -f -- "${GIT_DEEP_GC_BIN}"
-cp -- "${GIT_DEEP_GC_SRC}" "${GIT_DEEP_GC_BIN}"
-chown root:root "${GIT_DEEP_GC_BIN}"
-chmod 755 "${GIT_DEEP_GC_BIN}"
-log_success "git-deep-gc installed: ${GIT_DEEP_GC_BIN}"
+    log_info 'Installing git-deep-gc...'
+    install -D -o root -g root -m 755 "${SOURCE_FILE}" "${DEST_FILE}"
+    log_success "git-deep-gc installed: ${DEST_FILE}"
+}
+
+main "$@"

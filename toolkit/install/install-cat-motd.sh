@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Install the custom cat MOTD script.
+
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
-MOTD_SRC="${SCRIPT_DIR}/../conf/update-motd.d/9999-cat"
-MOTD_DEST="/etc/update-motd.d/9999-cat"
+# Constants/Variables
+readonly SOURCE_FILE="${REPO_ROOT}/toolkit/conf/update-motd.d/9999-cat"
+readonly DEST_FILE='/etc/update-motd.d/9999-cat'
 
-require_root
-require_dir /etc/update-motd.d
+# Run
+main() {
+    require_root
 
-log_info "Installing cat MOTD script..."
-install_file "${MOTD_SRC}" "${MOTD_DEST}" 755
+    log_info 'Installing Cat MOTD...'
+    install -D -o root -g root -m 755 "${SOURCE_FILE}" "${DEST_FILE}"
+    log_success "Cat MOTD installed: ${DEST_FILE}"
+}
 
-log_success "Cat MOTD installed: ${MOTD_DEST}"
+main "$@"
