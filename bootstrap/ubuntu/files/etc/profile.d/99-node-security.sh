@@ -1,3 +1,4 @@
 # shellcheck shell=sh
-export NPM_CONFIG_IGNORE_SCRIPTS=true
-export npm_config_ignore_scripts=true
+
+# Also covers Bun runtime commands, which do not read the global bunfig.
+export DO_NOT_TRACK=1

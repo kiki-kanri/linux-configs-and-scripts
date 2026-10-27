@@ -1,5 +1,6 @@
-[install]
-minimumReleaseAge = 86400
-ignoreScripts = true
-saveTextLockfile = true
 telemetry = false
+
+[install]
+# One day, in seconds.
+minimumReleaseAge = 86400
+saveTextLockfile = true

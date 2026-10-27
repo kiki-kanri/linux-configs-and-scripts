@@ -1,8 +1,0 @@
-minimum-release-age=1440
-ignore-scripts=true
-strict-ssl=true
-prefer-frozen-lockfile=true
-resolution-mode=highest
-side-effects-cache=false
-fund=false
-update-notifier=false

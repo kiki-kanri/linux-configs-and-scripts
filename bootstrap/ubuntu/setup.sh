@@ -105,7 +105,7 @@ sync_home_dirs() {
         [[ ! -f "${user_dir}/.npmrc" ]] || chmod 600 "${user_dir}/.npmrc"
         [[ ! -f "${user_dir}/.bunfig.toml" ]] || chmod 600 "${user_dir}/.bunfig.toml"
         [[ ! -d "${user_dir}/.config/pnpm" ]] || chmod 700 "${user_dir}/.config/pnpm"
-        [[ ! -f "${user_dir}/.config/pnpm/rc" ]] || chmod 600 "${user_dir}/.config/pnpm/rc"
+        [[ ! -f "${user_dir}/.config/pnpm/config.yaml" ]] || chmod 600 "${user_dir}/.config/pnpm/config.yaml"
         if [[ -d "${user_dir}/.ssh" ]]; then
             chmod 700 "${user_dir}/.ssh"
             find "${user_dir}/.ssh" -type f -exec chmod 600 {} +
@@ -137,9 +137,8 @@ log_info "Installing bootstrap config files..."
 rsync_bootstrap_dir /etc/
 rsync_bootstrap_dir /root/
 install -d -o root -g root -m 755 /etc/profile.d
-chmod 644 /etc/bash.bashrc /etc/profile /etc/npmrc /etc/pnpm/rc /etc/bun/bunfig.toml /etc/profile.d/99-node-security.sh /etc/profile.d/99-security-umask.sh
-chmod 755 /etc/pnpm /etc/bun
-chmod 600 /root/.npmrc /root/.config/pnpm/rc /root/.bunfig.toml
+chmod 644 /etc/bash.bashrc /etc/profile /etc/profile.d/99-node-security.sh /etc/profile.d/99-security-umask.sh
+chmod 600 /root/.npmrc /root/.config/pnpm/config.yaml /root/.bunfig.toml
 chmod 700 /root/.config/pnpm
 
 log_info "Setting SSH port to ${SSH_PORT}..."

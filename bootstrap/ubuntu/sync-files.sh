@@ -73,7 +73,7 @@ is_sensitive_path() {
     local path="$1"
 
     case "${path}" in
-    */.npmrc | */npmrc | */.bunfig.toml | */bunfig.toml | */.config/pnpm/rc | */pnpm/rc) return 0 ;;
+    */.npmrc | */.bunfig.toml | */.config/pnpm/config.yaml) return 0 ;;
     esac
 
     return 1
@@ -96,7 +96,7 @@ mode_for_path() {
     case "${dest}" in
     /scripts/*.sh) printf '700\n' ;;
     /etc/profile.d/*.sh) printf '644\n' ;;
-    /etc/bash.bashrc | /etc/profile | /etc/npmrc | /etc/pnpm/rc | /etc/bun/bunfig.toml | /etc/vim/vimrc) printf '644\n' ;;
+    /etc/bash.bashrc | /etc/profile | /etc/vim/vimrc) printf '644\n' ;;
     /etc/skel/.bashrc | /etc/skel/.profile | /etc/skel/.npmrc | /etc/skel/.bunfig.toml | /etc/skel/.config/*) printf '600\n' ;;
     /home/*/.bashrc | /home/*/.profile | /home/*/.npmrc | /home/*/.bunfig.toml | /home/*/.config/*) printf '600\n' ;;
     /root/.bashrc | /root/.profile | /root/.npmrc | /root/.bunfig.toml | /root/.config/*) printf '600\n' ;;
@@ -121,7 +121,7 @@ ensure_parent_dir() {
         chown "${owner}" "${parent}"
         chmod 700 "${parent}"
         ;;
-    /etc/pnpm | /etc/bun | /scripts)
+    /scripts)
         chown root:root "${parent}"
         chmod 755 "${parent}"
         ;;
@@ -240,8 +240,6 @@ sync_tree_to_root() {
         fi
     else
         install -d -o root -g root -m 755 /etc/profile.d
-        [[ ! -d /etc/pnpm ]] || { chown root:root /etc/pnpm && chmod 755 /etc/pnpm; }
-        [[ ! -d /etc/bun ]] || { chown root:root /etc/bun && chmod 755 /etc/bun; }
         [[ ! -d /root/.config ]] || { chown root:root /root/.config && chmod 700 /root/.config; }
         [[ ! -d /root/.config/pnpm ]] || { chown root:root /root/.config/pnpm && chmod 700 /root/.config/pnpm; }
         [[ ! -d /etc/skel/.config ]] || { chown root:root /etc/skel/.config && chmod 700 /etc/skel/.config; }

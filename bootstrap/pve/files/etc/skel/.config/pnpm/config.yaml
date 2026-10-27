@@ -1,0 +1,12 @@
+# One-day cooldown, including locked dependencies; fail closed on missing dates.
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+trustPolicy: no-downgrade
+trustLockfile: false
+
+sideEffectsCache: false
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+preferFrozenLockfile: true
+updateNotifier: false
