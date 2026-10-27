@@ -2,3 +2,4 @@
 
 # TODO: Implement single-node PVE bootstrap setup.
 # TODO: Prompt for a custom SSH port and replace SSH_PORT before deploying sshd_config, as in Ubuntu setup.
+# TODO: Run toolkit/security/setup-kernel-security.sh to install and apply the kernel baseline.

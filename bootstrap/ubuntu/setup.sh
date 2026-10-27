@@ -175,6 +175,7 @@ log_info "Running toolkit scripts..."
 "${TOOLKIT_DIR}/install/install-cat-motd.sh"
 run_optional_toolkit_script "${TOOLKIT_DIR}/install/install-shfmt.sh"
 "${TOOLKIT_DIR}/service/setup-thp-tuning.sh"
+"${TOOLKIT_DIR}/security/setup-kernel-security.sh"
 
 log_info "Cloning linux-configs-and-scripts to ${SCRIPTS_REPO_DIR}..."
 install -d -m 755 /scripts
