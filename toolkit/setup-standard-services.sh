@@ -90,4 +90,6 @@ else
     log_info "nginx not found; skipping Cloudflare real IP setup and nginx public snippet refresh."
 fi
 
+run_script "${REPO_ROOT}/toolkit/security/setup-kernel-security.sh"
+
 log_success "Standard service setup complete."

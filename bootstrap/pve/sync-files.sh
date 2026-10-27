@@ -280,6 +280,10 @@ sync_existing_home_dirs() {
 log_info "Syncing bootstrap-managed files from ${FILES_DIR}..."
 sync_tree_to_root
 
+if ! "${DRY_RUN}"; then
+    "${REPO_ROOT}/toolkit/security/setup-kernel-security.sh"
+fi
+
 if "${SYNC_HOME_DIRS}"; then
     sync_existing_home_dirs
 else
