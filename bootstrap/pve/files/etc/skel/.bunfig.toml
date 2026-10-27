@@ -1,0 +1,5 @@
+[install]
+minimumReleaseAge = 86400
+ignoreScripts = true
+saveTextLockfile = true
+telemetry = false
