@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
-# Recursively discover Git object databases and deeply garbage-collect them in parallel.
 
-# shellcheck disable=SC2317
+# shellcheck shell=bash
 
-set -uo pipefail
+set -euo pipefail
+
+# Installed as a standalone file; repository libraries are unavailable here.
+# Keep only the two log levels this command uses.
+
+# Functions
+log_info() {
+	printf '[git-deep-gc] INFO: %s\n' "$*"
+}
+
+log_error() {
+	printf '[git-deep-gc] ERROR: %s\n' "$*" >&2
+}
 
 usage() {
 	cat <<'USAGE'
@@ -31,121 +42,51 @@ resolve_common_dir() {
 }
 
 run_gc() {
-	local common_dir="$1"
-	local prune_now="$2"
-	local gc_args=(--aggressive)
+	local common_dir="$1" prune_now="$2"
 	local gc_pid=''
+	local -a gc_args=(--aggressive)
 
-	forward_signal() {
+	# shellcheck disable=SC2329 # Invoked by the signal traps below.
+	stop_gc() {
+		local status="$1"
+		trap '' HUP INT TERM
 		if [[ -n "${gc_pid}" ]]; then
+			# The process may have exited before signal delivery; still reap it.
 			kill -TERM "${gc_pid}" 2>/dev/null || true
+			wait "${gc_pid}" 2>/dev/null || true
 		fi
+
+		exit "${status}"
 	}
-	trap forward_signal HUP INT TERM
+
+	trap 'stop_gc 129' HUP
+	trap 'stop_gc 130' INT
+	trap 'stop_gc 143' TERM
 
 	if [[ "${prune_now}" == true ]]; then
 		gc_args+=(--prune=now)
 	fi
 
-	printf '[git-deep-gc] START %s\n' "${common_dir}"
+	log_info "Running Git GC: ${common_dir}..."
 	git --git-dir="${common_dir}" gc "${gc_args[@]}" >/dev/null 2>&1 &
 	gc_pid="$!"
 	if wait "${gc_pid}"; then
 		trap - HUP INT TERM
-		printf '[git-deep-gc] DONE  %s\n' "${common_dir}"
+		log_info "Git GC complete: ${common_dir}"
 		return 0
 	fi
 
 	trap - HUP INT TERM
-	printf '[git-deep-gc] FAIL  %s\n' "${common_dir}" >&2
+	log_error "Git GC failed: ${common_dir}"
 	return 1
 }
 
-cpu_count="$(nproc)"
-if ((cpu_count > 4)); then
-	jobs=4
-else
-	jobs="${cpu_count}"
-fi
-
-directories=()
-prune_now=false
-while (($# > 0)); do
-	case "$1" in
-	-j)
-		if (($# < 2)); then
-			printf 'Error: -j requires a positive integer\n' >&2
-			exit 2
-		fi
-		jobs="$2"
-		shift 2
-		;;
-	-h | --help)
-		usage
-		exit 0
-		;;
-	--prune-now)
-		prune_now=true
-		shift
-		;;
-	--)
-		shift
-		directories+=("$@")
-		break
-		;;
-	-*)
-		printf 'Error: unsupported option: %s\n' "$1" >&2
-		exit 2
-		;;
-	*)
-		directories+=("$1")
-		shift
-		;;
-	esac
-done
-
-if [[ ! "${jobs}" =~ ^[1-9][0-9]*$ ]]; then
-	printf 'Error: JOBS must be a positive integer\n' >&2
-	exit 2
-fi
-
-if ((${#directories[@]} == 0)); then
-	directories=(.)
-fi
-
-scan_directories=()
-for directory in "${directories[@]}"; do
-	scan_directory=''
-	if [[ ! -d "${directory}" ]]; then
-		printf 'Error: directory does not exist: %s\n' "${directory}" >&2
-		exit 2
-	fi
-
-	if ! scan_directory="$(cd -P -- "${directory}" && pwd)"; then
-		printf 'Error: cannot access directory: %s\n' "${directory}" >&2
-		exit 2
-	fi
-
-	scan_directories+=("${scan_directory}")
-done
-
-if ! markers_file="$(mktemp)"; then
-	printf 'Error: could not create temporary scan file\n' >&2
-	exit 1
-fi
-
-pids=()
-cleanup() {
-	rm -f -- "${markers_file}"
-}
-
-trap cleanup EXIT
-
+# shellcheck disable=SC2329 # Invoked by main's signal traps.
 terminate_children() {
 	local exit_code="$1"
 	local pid
 
-	trap - HUP INT TERM
+	trap '' HUP INT TERM
 	if ((${#pids[@]} > 0)); then
 		kill -TERM "${pids[@]}" 2>/dev/null || true
 		for pid in "${pids[@]}"; do
@@ -155,65 +96,6 @@ terminate_children() {
 
 	exit "${exit_code}"
 }
-
-trap 'terminate_children 129' HUP
-trap 'terminate_children 130' INT
-trap 'terminate_children 143' TERM
-
-scan_failed=0
-if ! find "${scan_directories[@]}" \
-	\( -name .git -print0 -prune \) -o \
-	\( -type d -name '*.git' -print0 -prune \) -o \
-	\( -type f -name config -print0 \) \
-	>"${markers_file}"; then
-	printf '[git-deep-gc] Scan completed with errors\n' >&2
-	scan_failed=1
-fi
-
-declare -A seen=()
-repositories=()
-
-for directory in "${scan_directories[@]}"; do
-	if common_dir="$(resolve_common_dir "${directory}")" && [[ -z "${seen["${common_dir}"]:-}" ]]; then
-		seen["${common_dir}"]=1
-		repositories+=("${common_dir}")
-	fi
-done
-
-while IFS= read -r -d '' marker; do
-	case "$(basename -- "${marker}")" in
-	.git)
-		if [[ -d "${marker}" && "$(git -C "${marker}" rev-parse --is-bare-repository 2>/dev/null)" == true ]]; then
-			candidate="${marker}"
-		else
-			candidate="$(dirname -- "${marker}")"
-		fi
-		;;
-	config)
-		candidate="$(dirname -- "${marker}")"
-		[[ -f "${candidate}/HEAD" && -d "${candidate}/objects" ]] || continue
-		[[ "$(git -C "${candidate}" rev-parse --is-bare-repository 2>/dev/null)" == true ]] || continue
-		;;
-	*)
-		candidate="${marker}"
-		;;
-	esac
-
-	if common_dir="$(resolve_common_dir "${candidate}")" && [[ -z "${seen["${common_dir}"]:-}" ]]; then
-		seen["${common_dir}"]=1
-		repositories+=("${common_dir}")
-	fi
-done <"${markers_file}"
-
-if ((${#repositories[@]} == 0)); then
-	printf '[git-deep-gc] No Git repositories found\n'
-	exit "${scan_failed}"
-fi
-
-printf '[git-deep-gc] Found %d object databases; jobs=%d\n' "${#repositories[@]}" "${jobs}"
-
-failed="${scan_failed}"
-pids=()
 
 wait_for_one() {
 	local completed_pid
@@ -233,17 +115,153 @@ wait_for_one() {
 	pids=("${remaining_pids[@]}")
 }
 
-for common_dir in "${repositories[@]}"; do
-	run_gc "${common_dir}" "${prune_now}" &
-	pids+=("$!")
+# Run
+main() {
+	local cpu_count jobs prune_now scan_directory markers_file scan_failed failed
+	local directory common_dir marker candidate
+	local -a directories=() scan_directories=() repositories=() pids=()
+	local -A seen=()
 
-	if ((${#pids[@]} >= jobs)); then
-		wait_for_one
+	cpu_count="$(nproc)"
+	if ((cpu_count > 4)); then
+		jobs=4
+	else
+		jobs="${cpu_count}"
 	fi
-done
 
-while ((${#pids[@]} > 0)); do
-	wait_for_one
-done
+	prune_now=false
+	while (($# > 0)); do
+		case "$1" in
+		-j)
+			if (($# < 2)); then
+				log_error '-j requires a positive integer'
+				exit 2
+			fi
 
-exit "${failed}"
+			jobs="$2"
+			shift 2
+			;;
+		-h | --help)
+			usage
+			exit 0
+			;;
+		--prune-now)
+			prune_now=true
+			shift
+			;;
+		--)
+			shift
+			directories+=("$@")
+			break
+			;;
+		-*)
+			log_error "Unsupported option: $1"
+			exit 2
+			;;
+		*)
+			directories+=("$1")
+			shift
+			;;
+		esac
+	done
+
+	if [[ ! "${jobs}" =~ ^[1-9][0-9]*$ ]]; then
+		log_error 'Jobs must be a positive integer'
+		exit 2
+	fi
+
+	if ((${#directories[@]} == 0)); then
+		directories=(.)
+	fi
+
+	for directory in "${directories[@]}"; do
+		scan_directory=''
+		if [[ ! -d "${directory}" ]]; then
+			log_error "Directory does not exist: ${directory}"
+			exit 2
+		fi
+
+		if ! scan_directory="$(cd -P -- "${directory}" && pwd)"; then
+			log_error "Cannot access directory: ${directory}"
+			exit 2
+		fi
+
+		scan_directories+=("${scan_directory}")
+	done
+
+	markers_file="$(mktemp)"
+	trap 'rm -f -- "${markers_file}"' EXIT
+
+	trap 'terminate_children 129' HUP
+	trap 'terminate_children 130' INT
+	trap 'terminate_children 143' TERM
+
+	scan_failed=0
+	if ! find "${scan_directories[@]}" \
+		\( -name .git -print0 -prune \) -o \
+		\( -type d -name '*.git' -print0 -prune \) -o \
+		\( -type f -name config -print0 \) \
+		>"${markers_file}"; then
+		log_error 'Scan completed with errors; processing the repositories found'
+		scan_failed=1
+	fi
+
+	for directory in "${scan_directories[@]}"; do
+		if common_dir="$(resolve_common_dir "${directory}")" && [[ -z "${seen["${common_dir}"]:-}" ]]; then
+			seen["${common_dir}"]=1
+			repositories+=("${common_dir}")
+		fi
+	done
+
+	while IFS= read -r -d '' marker; do
+		case "$(basename -- "${marker}")" in
+		.git)
+			if [[ -d "${marker}" && "$(git -C "${marker}" rev-parse --is-bare-repository 2>/dev/null)" == true ]]; then
+				candidate="${marker}"
+			else
+				candidate="$(dirname -- "${marker}")"
+			fi
+
+			;;
+		config)
+			candidate="$(dirname -- "${marker}")"
+			[[ -f "${candidate}/HEAD" && -d "${candidate}/objects" ]] || continue
+			[[ "$(git -C "${candidate}" rev-parse --is-bare-repository 2>/dev/null)" == true ]] || continue
+			;;
+		*)
+			candidate="${marker}"
+			;;
+		esac
+
+		if common_dir="$(resolve_common_dir "${candidate}")" && [[ -z "${seen["${common_dir}"]:-}" ]]; then
+			seen["${common_dir}"]=1
+			repositories+=("${common_dir}")
+		fi
+	done <"${markers_file}"
+
+	if ((${#repositories[@]} == 0)); then
+		log_info 'No Git repositories found'
+		exit "${scan_failed}"
+	fi
+
+	log_info "Found ${#repositories[@]} object databases; jobs: ${jobs}"
+
+	failed="${scan_failed}"
+
+	for common_dir in "${repositories[@]}"; do
+		run_gc "${common_dir}" "${prune_now}" &
+		pids+=("$!")
+
+		if ((${#pids[@]} >= jobs)); then
+			wait_for_one
+		fi
+	done
+
+	while ((${#pids[@]} > 0)); do
+		wait_for_one
+	done
+
+	exit "${failed}"
+}
+
+main "$@"

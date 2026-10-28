@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Disable selected executable MOTD scripts.
+
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
-motd_scripts=(
+# Constants/Variables
+readonly -a MOTD_SCRIPTS=(
     /etc/update-motd.d/00-header
     /etc/update-motd.d/10-help-text
     /etc/update-motd.d/50-landscape-sysinfo
@@ -18,19 +22,27 @@ motd_scripts=(
     /etc/update-motd.d/98-reboot-required
 )
 
-require_root
+# Run
+main() {
+    local script
+    local failed=false
 
-for motd_script in "${motd_scripts[@]}"; do
-    if [[ ! -e "${motd_script}" ]]; then
-        log_debug "MOTD script not found: ${motd_script}"
-        continue
-    fi
+    require_root
+    for script in "${MOTD_SCRIPTS[@]}"; do
+        [[ -e "${script}" ]] || continue
+        if chmod a-x -- "${script}"; then
+            log_info "Disabled MOTD script: ${script}"
+        else
+            log_warn "Could not disable MOTD script: ${script}"
+            failed=true
+        fi
+    done
 
-    if chmod a-x -- "${motd_script}"; then
-        log_info "Disabled MOTD script: ${motd_script}"
+    if "${failed}"; then
+        log_warn 'MOTD setup completed with failures; some scripts remain enabled'
     else
-        log_warn "Could not disable MOTD script: ${motd_script}"
+        log_success 'Selected MOTD scripts disabled'
     fi
-done
+}
 
-log_success "Selected MOTD scripts disabled."
+main "$@"

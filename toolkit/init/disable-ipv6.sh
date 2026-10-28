@@ -1,21 +1,33 @@
 #!/usr/bin/env bash
-# Disable IPv6 using the repository sysctl template.
+
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
-SYSCTL_SRC="${SCRIPT_DIR}/../conf/sysctl.d/99-disable-ipv6.conf"
-SYSCTL_DEST="/etc/sysctl.d/99-disable-ipv6.conf"
+# Constants/Variables
+readonly SYSCTL_SRC="${REPO_ROOT}/toolkit/conf/sysctl.d/99-disable-ipv6.conf"
+readonly SYSCTL_DEST='/etc/sysctl.d/99-disable-ipv6.conf'
 
-require_root
-require_cmd sysctl
+# Run
+main() {
+    require_root
+    if [[ "$(host_os)" != 'linux' ]]; then
+        log_error 'IPv6 sysctl configuration requires Linux'
+        exit 1
+    fi
 
-log_info "Installing IPv6 disable sysctl config..."
-install_file "${SYSCTL_SRC}" "${SYSCTL_DEST}" 644
+    require_cmd sysctl
 
-log_info "Applying sysctl config: ${SYSCTL_DEST}"
-sysctl -p "${SYSCTL_DEST}" >/dev/null
+    log_info 'Installing IPv6 disable configuration...'
+    install -D -o root -g root -m 644 "${SYSCTL_SRC}" "${SYSCTL_DEST}"
+    log_info 'Applying IPv6 disable configuration...'
+    sysctl -p "${SYSCTL_DEST}"
+    log_success 'IPv6 disable configuration applied'
+}
 
-log_success "IPv6 sysctl config installed and applied."
+main "$@"

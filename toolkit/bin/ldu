@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 
-set -uo pipefail
+# shellcheck shell=bash
 
-(($# > 0)) || set -- .
-du -had1 "$@" | sort -h | column -t
+set -euo pipefail
+
+# Installed as a standalone file; no repository libraries are available.
+# This data-only command deliberately emits no log messages.
+
+# Run
+main() {
+	(($# > 0)) || set -- .
+	du -had1 "$@" | sort -h | column -t
+}
+
+main "$@"
