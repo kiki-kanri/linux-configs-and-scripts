@@ -4,6 +4,7 @@
 
 # Functions
 read_ssh_port() {
+    local output_var="$1"
     local port
 
     while true; do
@@ -19,7 +20,7 @@ read_ssh_port() {
             continue
         fi
 
-        printf '%s\n' "${port}"
+        printf -v "${output_var}" '%s' "${port}"
         return 0
     done
 }

@@ -22,9 +22,9 @@ setup_ubuntu() {
     "${TOOLKIT_DIR}/install/install-base-packages.sh" --initial-setup
     require_cmd chmod chown find install locale-gen rsync sed stat systemctl ufw update-locale
 
-    ssh_port="$(read_ssh_port)"
+    read_ssh_port ssh_port
     log_info "Selected SSH port: ${ssh_port}"
-    timezone="$(read_timezone)"
+    read_timezone timezone
     log_info "Selected timezone: ${timezone}"
 
     install_bootstrap_files

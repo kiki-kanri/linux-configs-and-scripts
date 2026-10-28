@@ -14,24 +14,25 @@ timezone_exists() {
 }
 
 read_timezone() {
-    local timezone
+    local output_var="$1"
+    local selected_timezone
 
     if [[ ! -r /dev/tty ]]; then
         log_info "No interactive terminal; using default timezone: ${DEFAULT_TIMEZONE}" >&2
-        printf '%s\n' "${DEFAULT_TIMEZONE}"
+        printf -v "${output_var}" '%s' "${DEFAULT_TIMEZONE}"
         return 0
     fi
 
     printf 'Common timezones: %s\n' "${COMMON_TIMEZONES[*]}" >&2
     while true; do
         printf 'Enter timezone [%s]: ' "${DEFAULT_TIMEZONE}" >/dev/tty
-        read -r timezone </dev/tty || return 1
-        timezone="${timezone:-${DEFAULT_TIMEZONE}}"
-        if timezone_exists "${timezone}"; then
-            printf '%s\n' "${timezone}"
+        read -r selected_timezone </dev/tty || return 1
+        selected_timezone="${selected_timezone:-${DEFAULT_TIMEZONE}}"
+        if timezone_exists "${selected_timezone}"; then
+            printf -v "${output_var}" '%s' "${selected_timezone}"
             return 0
         fi
 
-        log_error "Unknown timezone: ${timezone}"
+        log_error "Unknown timezone: ${selected_timezone}"
     done
 }

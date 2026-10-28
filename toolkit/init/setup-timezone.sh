@@ -36,7 +36,10 @@ main() {
 
     require_root
     require_cmd timedatectl
-    [[ -n "${timezone}" ]] || timezone="$(read_timezone)"
+    if [[ -z "${timezone}" ]]; then
+        read_timezone timezone
+    fi
+
     if ! timezone_exists "${timezone}"; then
         log_error "Unknown timezone: ${timezone}"
         exit 1
