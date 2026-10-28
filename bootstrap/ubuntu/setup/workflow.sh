@@ -18,7 +18,7 @@ setup_ubuntu() {
     local ssh_port timezone
 
     require_root
-    validate_bootstrap_permissions
+    validate_setup_files
     "${TOOLKIT_DIR}/install/install-base-packages.sh" --initial-setup
     require_cmd chmod chown find install locale-gen rsync sed stat systemctl ufw update-locale
 

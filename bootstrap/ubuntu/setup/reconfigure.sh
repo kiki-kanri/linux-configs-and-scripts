@@ -8,7 +8,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 source "${SCRIPT_DIR}/../../../libs/common.sh"
-source "${SCRIPT_DIR}/libs/tools.sh"
+readonly UBUNTU_BOOTSTRAP_DIR="${REPO_ROOT}/bootstrap/ubuntu"
+readonly UBUNTU_SETUP_DIR="${UBUNTU_BOOTSTRAP_DIR}/setup"
+source "${UBUNTU_SETUP_DIR}/libs/files.sh"
+source "${UBUNTU_SETUP_DIR}/libs/tools.sh"
 
 # Constants/Variables
 readonly TOOLKIT_DIR="${REPO_ROOT}/toolkit"
@@ -28,6 +31,7 @@ main() {
     esac
 
     "${TOOLKIT_DIR}/install/install-base-packages.sh"
+    reconfigure_bootstrap_files
     "${TOOLKIT_DIR}/init/disable-motds.sh"
 
     install_common_tools
