@@ -41,11 +41,12 @@ verify_nginx_profile() {
 # Run
 main() {
     local mode='complain'
-    local verify_only=false
+    local action='setup'
 
     while (($# > 0)); do
         case "$1" in
-        --verify) verify_only=true ;;
+        --verify) action='verify' ;;
+        --load-only) action='load' ;;
         *)
             log_error "Unknown argument: $1"
             return 2
@@ -71,7 +72,7 @@ main() {
         return 0
     fi
 
-    if "${verify_only}"; then
+    if [[ "${action}" == 'verify' ]]; then
         verify_nginx_profile
         return
     fi
@@ -93,7 +94,16 @@ main() {
     fi
 
     apparmor_parser -r "${PROFILE_DEST}"
-    log_success 'Nginx AppArmor profile loaded; restart Nginx to attach previously unconfined processes'
+    if [[ "${action}" == 'load' ]]; then
+        log_success 'Nginx AppArmor profile loaded'
+        return 0
+    fi
+
+    log_info 'Validating and restarting Nginx with AppArmor...'
+    /usr/sbin/nginx -t
+    systemctl restart nginx.service
+    verify_nginx_profile
+    log_success 'Nginx restarted and AppArmor profile verified'
 }
 
 main "$@"

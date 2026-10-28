@@ -196,7 +196,7 @@ configure_and_start_nginx() {
 
     apt-mark hold nginx nginx-debug || log_warn 'Could not hold NGINX packages'
 
-    "${REPO_ROOT}/toolkit/security/setup-nginx-apparmor.sh"
+    "${REPO_ROOT}/toolkit/security/setup-nginx-apparmor.sh" --load-only
     "${NGINX_SBIN}" -t
     systemctl enable nginx
     systemctl restart nginx
