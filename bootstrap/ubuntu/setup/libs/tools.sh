@@ -6,18 +6,18 @@
 readonly SCRIPTS_REPO_DIR='/scripts/linux-configs-and-scripts'
 
 # Functions
-install_bootstrap_tools() {
+install_common_tools() {
     "${TOOLKIT_DIR}/install/install-git-deep-gc.sh"
     "${TOOLKIT_DIR}/install/install-ldu.sh"
     "${TOOLKIT_DIR}/install/install-7zip.sh"
     "${TOOLKIT_DIR}/install/install-cat-motd.sh"
 
-    # A formatter is optional; its download failure must not abort server bootstrap.
+    # A formatter is optional; its download failure must not abort provisioning.
     log_info 'Installing optional shfmt...'
     "${TOOLKIT_DIR}/install/install-shfmt.sh" || log_warn 'Optional shfmt installation failed; continuing'
 }
 
-configure_bootstrap_tuning() {
+configure_system_tuning() {
     "${TOOLKIT_DIR}/service/setup-thp-tuning.sh"
     "${TOOLKIT_DIR}/security/setup-kernel-security.sh"
 }

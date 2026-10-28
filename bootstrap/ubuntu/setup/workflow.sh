@@ -31,8 +31,8 @@ setup_ubuntu() {
     configure_bootstrap_access "${ssh_port}"
     sync_bootstrap_home_dirs
     configure_bootstrap_system "${timezone}"
-    install_bootstrap_tools
-    configure_bootstrap_tuning
+    install_common_tools
+    configure_system_tuning
     install_scripts_repository
 
     log_success 'Bootstrap complete; reboot is recommended'
