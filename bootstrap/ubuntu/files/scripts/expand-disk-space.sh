@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# TODO: 待整理
 # Grow the root partition, LVM volume and filesystem when supported.
 
 set -euo pipefail
