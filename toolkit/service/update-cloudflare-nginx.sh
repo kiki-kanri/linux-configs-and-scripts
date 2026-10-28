@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Fetch Cloudflare IP ranges and generate nginx real_ip and origin-access config.
+# shellcheck shell=bash
 
 set -euo pipefail
 
@@ -129,20 +129,15 @@ validate_and_reload_nginx() {
         return 0
     fi
 
-    if ! command -v nginx >/dev/null 2>&1; then
-        log_warn 'NGINX is unavailable; generated configuration only'
-        return 0
-    fi
+    /usr/sbin/nginx -t || return 1
 
-    nginx -t || return 1
-
-    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
-        systemctl reload nginx || return 1
+    if systemctl is-active --quiet nginx.service; then
+        systemctl reload nginx.service || return 1
         log_success 'NGINX reloaded'
         return 0
     fi
 
-    log_info 'NGINX configuration is valid; service is inactive or systemctl is unavailable'
+    log_info 'NGINX configuration is valid; service is inactive'
 }
 
 # Run
@@ -170,7 +165,12 @@ main() (
         esac
     done
 
-    for command_name in curl python3 install; do
+    if [[ ! -x /usr/sbin/nginx ]]; then
+        log_info 'Nginx is not installed; skipping Cloudflare update'
+        return 0
+    fi
+
+    for command_name in curl python3 install systemctl; do
         command -v "${command_name}" >/dev/null 2>&1 || {
             log_error "Required command not found: ${command_name}"
             return 1
@@ -181,13 +181,13 @@ main() (
     trap 'rm -rf -- "${tmp_dir}"' EXIT
 
     log_info 'Fetching Cloudflare IPv4 ranges...'
-    curl -fsSL --retry 3 --connect-timeout 10 --output "${tmp_dir}/ips-v4" "${CF_IPV4_URL}"
+    curl -fsSL --connect-timeout 10 --output "${tmp_dir}/ips-v4" "${CF_IPV4_URL}"
 
     log_info 'Fetching Cloudflare IPv6 ranges...'
-    curl -fsSL --retry 3 --connect-timeout 10 --output "${tmp_dir}/ips-v6" "${CF_IPV6_URL}"
+    curl -fsSL --connect-timeout 10 --output "${tmp_dir}/ips-v6" "${CF_IPV6_URL}"
 
     log_info 'Fetching Cloudflare API IP ranges...'
-    curl -fsSL --retry 3 --connect-timeout 10 --output "${tmp_dir}/api-ips.json" "${CF_API_URL}"
+    curl -fsSL --connect-timeout 10 --output "${tmp_dir}/api-ips.json" "${CF_API_URL}"
 
     extract_api_cidrs "${tmp_dir}/api-ips.json" "${tmp_dir}/api-ips-v4" "${tmp_dir}/api-ips-v6"
     normalize_cidrs "${tmp_dir}/ips-v4" "${tmp_dir}/ips-v4.normalized"

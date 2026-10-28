@@ -8,27 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 source "${SCRIPT_DIR}/../../libs/common.sh"
-
-# Constants/Variables
-readonly DEFAULT_TIMEZONE='Asia/Taipei'
-readonly -a COMMON_TIMEZONES=(Asia/Taipei Asia/Hong_Kong Asia/Tokyo UTC)
-
-# Functions
-prompt_timezone() {
-    local selected_timezone current_timezone
-
-    current_timezone="$(timedatectl show -p Timezone --value)" || return 1
-    log_info "Current timezone: ${current_timezone}" >&2
-    printf 'Common timezones: %s\n' "${COMMON_TIMEZONES[*]}" >&2
-    if [[ -r /dev/tty ]]; then
-        printf 'Enter timezone [%s]: ' "${DEFAULT_TIMEZONE}" >/dev/tty
-        read -r selected_timezone </dev/tty || return 1
-    else
-        log_info "No interactive terminal; using default timezone: ${DEFAULT_TIMEZONE}" >&2
-        selected_timezone="${DEFAULT_TIMEZONE}"
-    fi
-    printf '%s\n' "${selected_timezone:-${DEFAULT_TIMEZONE}}"
-}
+source "${SCRIPT_DIR}/libs/timezone.sh"
 
 # Run
 main() {
@@ -56,8 +36,8 @@ main() {
 
     require_root
     require_cmd timedatectl
-    [[ -n "${timezone}" ]] || timezone="$(prompt_timezone)"
-    if [[ "${timezone}" == /* || "${timezone}" == *../* || ! -f "/usr/share/zoneinfo/${timezone}" ]]; then
+    [[ -n "${timezone}" ]] || timezone="$(read_timezone)"
+    if ! timezone_exists "${timezone}"; then
         log_error "Unknown timezone: ${timezone}"
         exit 1
     fi

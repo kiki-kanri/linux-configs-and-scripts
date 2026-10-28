@@ -2,23 +2,10 @@
 
 # shellcheck shell=bash
 
+# shellcheck disable=SC1091
+source "${REPO_ROOT}/toolkit/init/libs/timezone.sh"
+
 # Functions
-read_timezone() {
-    local timezone
-
-    while true; do
-        printf 'Enter timezone [Asia/Taipei]: ' >/dev/tty
-        read -r timezone </dev/tty || return 1
-        timezone="${timezone:-Asia/Taipei}"
-        if [[ -f "/usr/share/zoneinfo/${timezone}" ]]; then
-            printf '%s\n' "${timezone}"
-            return 0
-        fi
-
-        log_error "Invalid timezone: ${timezone}"
-    done
-}
-
 enable_rc_local() {
     log_info 'Enabling rc.local...'
     systemctl enable rc-local.service

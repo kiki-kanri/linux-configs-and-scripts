@@ -217,8 +217,6 @@ restore_or_install_config() {
 }
 
 finish_nginx_installation() {
-    local master_pid worker_pids pid label
-
     if ! id -u "${NGINX_USER}" >/dev/null 2>&1; then
         useradd -r -s /sbin/nologin "${NGINX_USER}"
         log_info "NGINX user created: ${NGINX_USER}"
@@ -236,42 +234,17 @@ finish_nginx_installation() {
     systemctl enable nginx
     systemctl restart nginx
 
-    if [[ -r /sys/kernel/security/apparmor/profiles ]] && grep -q '^nginx (' /sys/kernel/security/apparmor/profiles; then
-        master_pid="$(systemctl show -p MainPID --value nginx.service)"
-        worker_pids="$(cat "/proc/${master_pid}/task/${master_pid}/children")"
-        for pid in "${master_pid}" ${worker_pids}; do
-            label="$(cat "/proc/${pid}/attr/current")"
-            case "${label}" in
-            'nginx (complain)' | 'nginx (enforce)') log_info "Nginx AppArmor label for PID ${pid}: ${label}" ;;
-            *)
-                log_error "Nginx process is not using the expected AppArmor profile: PID ${pid}; ${label}"
-                return 1
-                ;;
-            esac
-        done
-    fi
+    "${REPO_ROOT}/toolkit/security/setup-nginx-apparmor.sh" --verify
 
     log_success "NGINX installed and started; version: ${NGINX_VERSION}"
 }
 
 setup_nginx_integrations() {
-    # cloudflare
-    local setup_script="${REPO_ROOT}/toolkit/service/setup-cloudflare-nginx.sh"
-    if [[ ! -x "${setup_script}" ]]; then
-        log_warn "Cloudflare NGINX setup script is missing or not executable; skipping: ${setup_script}"
-    else
-        log_info 'Setting up Cloudflare IP range auto-update for NGINX...'
-        "${setup_script}" || log_warn "Cloudflare NGINX auto-update setup failed; run manually: ${setup_script}"
-    fi
+    log_info 'Setting up NGINX Cloudflare IP updates...'
+    "${REPO_ROOT}/toolkit/service/setup-cloudflare-nginx.sh" || log_warn 'Cloudflare NGINX setup failed; rerun toolkit/service/setup-cloudflare-nginx.sh'
 
-    # logrotate
-    setup_script="${REPO_ROOT}/toolkit/service/setup-logrotate-nginx.sh"
-    if [[ ! -x "${setup_script}" ]]; then
-        log_warn "NGINX logrotate setup script is missing or not executable; skipping: ${setup_script}"
-    else
-        log_info 'Setting up NGINX logrotate policy...'
-        "${setup_script}" || log_warn "NGINX logrotate setup failed; run manually: ${setup_script}"
-    fi
+    log_info 'Setting up NGINX logrotate policy...'
+    "${REPO_ROOT}/toolkit/service/setup-logrotate-nginx.sh" || log_warn 'NGINX logrotate setup failed; rerun toolkit/service/setup-logrotate-nginx.sh'
 }
 
 cleanup_build_dependencies() {

@@ -15,11 +15,52 @@ readonly PROFILE_DEST='/etc/apparmor.d/usr.sbin.nginx'
 readonly LOCAL_PROFILE='/etc/apparmor.d/local/usr.sbin.nginx'
 readonly LOADED_PROFILES='/sys/kernel/security/apparmor/profiles'
 
+# Functions
+verify_nginx_profile() {
+    local master_pid worker_pids pid label
+
+    if ! grep -q '^nginx (' "${LOADED_PROFILES}"; then
+        log_info 'Nginx AppArmor profile is not loaded; skipping verification'
+        return 0
+    fi
+
+    master_pid="$(systemctl show -p MainPID --value nginx.service)"
+    worker_pids="$(cat "/proc/${master_pid}/task/${master_pid}/children")"
+    for pid in "${master_pid}" ${worker_pids}; do
+        label="$(cat "/proc/${pid}/attr/current")"
+        case "${label}" in
+        'nginx (complain)' | 'nginx (enforce)') log_info "Nginx AppArmor label for PID ${pid}: ${label}" ;;
+        *)
+            log_error "Nginx process is not using the expected AppArmor profile: PID ${pid}; ${label}"
+            return 1
+            ;;
+        esac
+    done
+}
+
 # Run
 main() {
     local mode='complain'
+    local verify_only=false
+
+    while (($# > 0)); do
+        case "$1" in
+        --verify) verify_only=true ;;
+        *)
+            log_error "Unknown argument: $1"
+            return 2
+            ;;
+        esac
+
+        shift
+    done
 
     require_root
+    if [[ ! -x /usr/sbin/nginx ]]; then
+        log_info 'Nginx is not installed; skipping AppArmor setup'
+        return 0
+    fi
+
     if [[ "$(host_os)" != 'linux' ]] || ! command_exists apparmor_parser || [[ ! -r "${LOADED_PROFILES}" ]]; then
         log_info 'AppArmor is unavailable or not enabled; skipping Nginx profile setup'
         return 0
@@ -28,6 +69,11 @@ main() {
     if [[ -e /etc/apparmor.d/disable/usr.sbin.nginx || -L /etc/apparmor.d/disable/usr.sbin.nginx ]]; then
         log_info 'Nginx AppArmor profile is explicitly disabled; skipping setup'
         return 0
+    fi
+
+    if "${verify_only}"; then
+        verify_nginx_profile
+        return
     fi
 
     # aa-enforce removes the complain flag; preserve the administrator's persistent mode.
