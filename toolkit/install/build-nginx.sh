@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck shell=bash
 # shellcheck disable=SC1091
 
 # Build and install nginx with HTTP/3, QuicTLS, Brotli, GeoIP2, headers-more and zstd.
@@ -15,71 +16,79 @@ source "${SCRIPT_DIR}/build-nginx.d/sources.sh"
 source "${SCRIPT_DIR}/build-nginx.d/flags.sh"
 
 # Functions
-is_build_package_preinstalled() {
-    local package
-    for package in "${preinstalled_build_packages[@]}"; do
-        [[ "${package}" == "$1" ]] && return 0
-    done
+prepare_existing_installation() {
+    local backup_timestamp
 
-    return 1
-}
-
-backup_existing_nginx() {
-    [[ -f /etc/nginx/nginx.conf ]] || return 0
-
-    log_info 'Existing NGINX installation detected'
-    log_warn 'Upgrade preserves nginx.conf, certs, conf.d, domains and public; source: /etc/nginx'
-    if [[ "${force}" == false ]]; then
-        confirm 'Continue with NGINX upgrade?' --default=yes || exit 0
+    if [[ -f "${NGINX_PREFIX}/nginx.conf" ]]; then
+        is_upgrade=true
+        log_info 'Existing NGINX installation detected'
+        log_warn "Upgrade preserves nginx.conf, certs, conf.d, domains and public; source: ${NGINX_PREFIX}"
+    elif systemctl is-active --quiet nginx; then
+        log_warn 'NGINX is running and will be restarted'
+    else
+        return 0
     fi
 
-    is_upgrade=true
+    if [[ "${force}" == false ]]; then
+        confirm 'Continue with NGINX installation?' --default=yes || exit 0
+    fi
+
+    [[ "${is_upgrade}" == true ]] || return 0
+
     if [[ -e "${NGINX_BACKUP_DIR}" ]]; then
-        local backup_timestamp
         backup_timestamp="$(date '+%Y%m%d%H%M%S')"
         log_info "Rotating existing backup to: ${NGINX_BACKUP_DIR}.${backup_timestamp}..."
         mv "${NGINX_BACKUP_DIR}" "${NGINX_BACKUP_DIR}.${backup_timestamp}"
     fi
 
     log_info "Backing up NGINX configuration to: ${NGINX_BACKUP_DIR}..."
-    cp -a /etc/nginx "${NGINX_BACKUP_DIR}"
+    cp -a "${NGINX_PREFIX}" "${NGINX_BACKUP_DIR}"
 }
 
 install_build_dependencies() {
+    local package package_status
+
     log_info 'Installing NGINX build dependencies...'
     apt-get update
 
-    local package package_status
     for package in "${BUILD_PACKAGES[@]}"; do
-        if package_status="$(dpkg-query -W -f='${db:Status-Status}' "${package}" 2>/dev/null)" && [[ "${package_status}" == installed ]]; then
-            preinstalled_build_packages+=("${package}")
+        if ! package_status="$(dpkg-query -W -f='${db:Status-Status}' "${package}" 2>/dev/null)" || [[ "${package_status}" != installed ]]; then
+            new_build_packages+=("${package}")
         fi
     done
 
     apt-get install -y --no-install-recommends "${BUILD_PACKAGES[@]}" "${BUILD_TOOLS[@]}"
-    require_cmd clang cmake git make ninja rsync strip wget
+    require_cmd clang cmake git gpg gpgv make ninja rsync strip wget
 }
 
 prepare_sources() {
+    local module_repo module_name repo_url source_commit
+
     log_info 'Cloning QuicTLS...'
     rm -rf "${QUICTLS_DIR}"
     git clone --depth=1 "${QUICTLS_REPO_URL}" "${QUICTLS_DIR}"
+    source_commit="$(git -C "${QUICTLS_DIR}" rev-parse HEAD)"
+    log_info "QuicTLS commit: ${source_commit}"
 
     log_info 'Cloning NGINX modules...'
-    local module_repo module_name repo_url
     for module_repo in "${NGINX_MODULE_REPOS[@]}"; do
         IFS='|' read -r module_name repo_url <<<"${module_repo}"
         git clone --recurse-submodules "${repo_url}" "${build_root_dir}/${module_name}"
+        source_commit="$(git -C "${build_root_dir}/${module_name}" rev-parse HEAD)"
+        log_info "${module_name} commit: ${source_commit}"
     done
 }
 
 build_brotli() {
+    local source_commit
     local brotli_src_dir="${build_root_dir}/ngx_brotli/deps/brotli"
     local build_dir="${brotli_src_dir}/out"
 
     log_info "Preparing Brotli version: ${BROTLI_VERSION}..."
     git -C "${brotli_src_dir}" fetch --depth=1 origin "refs/tags/v${BROTLI_VERSION}"
     git -C "${brotli_src_dir}" checkout --detach FETCH_HEAD
+    source_commit="$(git -C "${brotli_src_dir}" rev-parse HEAD)"
+    log_info "Brotli commit: ${source_commit}; version: ${BROTLI_VERSION}"
 
     log_info 'Building Brotli...'
     rm -rf "${build_dir}"
@@ -123,10 +132,17 @@ build_quictls() {
 }
 
 download_nginx() {
-    log_info "Downloading NGINX version: ${NGINX_VERSION}..."
-    rm -rf "${build_root_dir}/nginx-${NGINX_VERSION}" "${build_root_dir}/nginx-${NGINX_VERSION}.tar.gz"
-    wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -P "${build_root_dir}"
-    tar -xf "${build_root_dir}/nginx-${NGINX_VERSION}.tar.gz" -C "${build_root_dir}"
+    local archive="${build_root_dir}/nginx-${NGINX_VERSION}.tar.gz"
+    local gpg_home="${build_root_dir}/gnupg"
+
+    log_info "Downloading and verifying NGINX version: ${NGINX_VERSION}..."
+    wget -q "${NGINX_DOWNLOAD_URL}/nginx-${NGINX_VERSION}.tar.gz" -O "${archive}"
+    wget -q "${NGINX_DOWNLOAD_URL}/nginx-${NGINX_VERSION}.tar.gz.asc" -O "${archive}.asc"
+
+    install -d -m 700 "${gpg_home}"
+    gpg --batch --yes --homedir "${gpg_home}" --dearmor --output "${gpg_home}/trusted.gpg" "${NGINX_SIGNING_KEYS}"
+    gpgv --homedir "${gpg_home}" --keyring "${gpg_home}/trusted.gpg" "${archive}.asc" "${archive}"
+    tar -xf "${archive}" -C "${build_root_dir}"
 }
 
 build_and_install_nginx() {
@@ -135,55 +151,7 @@ build_and_install_nginx() {
     log_info 'Configuring NGINX...'
     (
         cd "${nginx_src_dir}"
-        CC=clang CXX=clang++ ./configure \
-            "${NGINX_MODULE_CONFIGURE_ARGS[@]}" \
-            --conf-path=/etc/nginx/nginx.conf \
-            --error-log-path=/var/log/nginx/error.log \
-            --group="${NGINX_GROUP}" \
-            --http-client-body-temp-path=/var/cache/nginx/client_temp \
-            --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
-            --http-log-path=/var/log/nginx/access.log \
-            --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
-            --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
-            --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-            --lock-path=/run/nginx.lock \
-            --modules-path="${NGINX_MODULES_DIR}" \
-            --pid-path=/run/nginx.pid \
-            --prefix="${NGINX_PREFIX}" \
-            --sbin-path="${NGINX_SBIN}" \
-            --user="${NGINX_USER}" \
-            --with-cc-opt="${NGINX_CFLAGS[*]}" \
-            --with-compat \
-            --with-file-aio \
-            --with-http_addition_module \
-            --with-http_auth_request_module \
-            --with-http_dav_module \
-            --with-http_degradation_module \
-            --with-http_flv_module \
-            --with-http_gunzip_module \
-            --with-http_gzip_static_module \
-            --with-http_mp4_module \
-            --with-http_random_index_module \
-            --with-http_realip_module \
-            --with-http_secure_link_module \
-            --with-http_slice_module \
-            --with-http_ssl_module \
-            --with-http_stub_status_module \
-            --with-http_sub_module \
-            --with-http_v2_module \
-            --with-http_v3_module \
-            --with-ld-opt="${NGINX_LDFLAGS[*]}" \
-            --with-mail \
-            --with-mail_ssl_module \
-            --without-poll_module \
-            --without-select_module \
-            --with-pcre-jit \
-            --with-stream \
-            --with-stream_geoip_module=dynamic \
-            --with-stream_realip_module \
-            --with-stream_ssl_module \
-            --with-stream_ssl_preread_module \
-            --with-threads
+        CC=clang CXX=clang++ ./configure "${NGINX_CONFIGURE_ARGS[@]}"
 
         log_info 'Compiling NGINX...'
         make -j"$(nproc)" LINK=clang++
@@ -192,42 +160,41 @@ build_and_install_nginx() {
         make install LINK=clang++
     )
 
-    strip -s "${NGINX_SBIN}" 2>/dev/null || true
+    strip -s "${NGINX_SBIN}" || log_warn "Could not strip NGINX binary: ${NGINX_SBIN}"
 }
 
-restore_or_install_config() {
+install_nginx_configuration() {
+    local item
+
     if [[ "${is_upgrade}" == true ]]; then
         log_info 'Restoring preserved NGINX configuration...'
-        rm -rf /etc/nginx/nginx.conf /etc/nginx/certs /etc/nginx/domains /etc/nginx/public
-        cp -a "${NGINX_BACKUP_DIR}/nginx.conf" /etc/nginx/nginx.conf
+        rm -rf "${NGINX_PREFIX}/nginx.conf" "${NGINX_PREFIX}/certs" "${NGINX_PREFIX}/domains" "${NGINX_PREFIX}/public"
+        cp -a "${NGINX_BACKUP_DIR}/nginx.conf" "${NGINX_PREFIX}/nginx.conf"
 
-        local item
         for item in certs conf.d domains public; do
             [[ -e "${NGINX_BACKUP_DIR}/${item}" ]] || continue
-            cp -a "${NGINX_BACKUP_DIR}/${item}" /etc/nginx/
+            cp -a "${NGINX_BACKUP_DIR}/${item}" "${NGINX_PREFIX}/"
         done
 
         return 0
     fi
 
     log_info 'Installing default NGINX configuration...'
-    rsync -a "${REPO_ROOT}/toolkit/conf/nginx/" /etc/nginx/
-    install_file "${REPO_ROOT}/toolkit/conf/systemd/nginx.service" /etc/systemd/system/nginx.service 644
+    rsync -a "${REPO_ROOT}/toolkit/conf/nginx/" "${NGINX_PREFIX}/"
+    install -m 644 "${REPO_ROOT}/toolkit/conf/systemd/nginx.service" /etc/systemd/system/nginx.service
     systemctl daemon-reload
 }
 
-finish_nginx_installation() {
+configure_and_start_nginx() {
     if ! id -u "${NGINX_USER}" >/dev/null 2>&1; then
         useradd -r -s /sbin/nologin "${NGINX_USER}"
         log_info "NGINX user created: ${NGINX_USER}"
     fi
 
-    install -d -m 755 /var/cache/nginx /var/log/nginx /etc/nginx/certs
-    restore_or_install_config
+    install -d -m 755 /var/cache/nginx /var/log/nginx "${NGINX_PREFIX}/certs"
+    install_nginx_configuration
 
-    if command_exists apt-mark; then
-        apt-mark hold nginx nginx-debug 2>/dev/null || true
-    fi
+    apt-mark hold nginx nginx-debug || log_warn 'Could not hold NGINX packages'
 
     "${REPO_ROOT}/toolkit/security/setup-nginx-apparmor.sh"
     "${NGINX_SBIN}" -t
@@ -251,16 +218,8 @@ cleanup_build_dependencies() {
     log_info 'Installing runtime packages and removing build-only packages...'
     apt-get install -y --no-install-recommends "${RUNTIME_PACKAGES[@]}"
 
-    local package
-    local packages_to_remove=()
-    for package in "${BUILD_PACKAGES[@]}"; do
-        if ! is_build_package_preinstalled "${package}"; then
-            packages_to_remove+=("${package}")
-        fi
-    done
-
-    if ((${#packages_to_remove[@]} > 0)); then
-        apt-get remove --purge -y "${packages_to_remove[@]}" 2>/dev/null || true
+    if ((${#new_build_packages[@]} > 0)); then
+        apt-get remove --purge -y "${new_build_packages[@]}" || log_warn 'Could not remove all build-only packages'
     else
         log_info 'All build packages were already installed; skipping build package removal'
     fi
@@ -270,8 +229,8 @@ cleanup_build_dependencies() {
 main() (
     local force=false
     local is_upgrade=false
-    local preinstalled_build_packages=()
-    local build_root_dir
+    local new_build_packages=()
+    local build_root_dir nginx_version_output
 
     while (($# > 0)); do
         case "$1" in
@@ -299,17 +258,17 @@ main() (
     done
 
     require_root
-    require_cmd apt-get cp date dpkg-query grep id install mktemp mv nproc rm systemctl tar useradd
+    require_cmd apt-get apt-mark cp date dpkg-query id install mktemp mv nproc rm systemctl tar useradd
 
-    if [[ ! -f /etc/nginx/nginx.conf ]] && systemctl is-active --quiet nginx 2>/dev/null && [[ "${force}" == false ]]; then
-        log_warn 'NGINX is running and will be restarted'
-        confirm 'Continue?' --default=yes || exit 0
+    if [[ ! "${NGINX_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_error "Invalid NGINX version: ${NGINX_VERSION}"
+        exit 1
     fi
 
     build_root_dir="$(mktemp -d /tmp/build-nginx.XXXXXX)"
     trap 'rm -rf -- "${build_root_dir}"' EXIT
 
-    backup_existing_nginx
+    prepare_existing_installation
     install_build_dependencies
     prepare_sources
     build_brotli
@@ -317,10 +276,11 @@ main() (
     download_nginx
     build_and_install_nginx
     cleanup_build_dependencies
-    finish_nginx_installation
+    configure_and_start_nginx
     setup_nginx_integrations
-    log_info "$("${NGINX_SBIN}" -v 2>&1)"
-    systemctl status nginx --no-pager | grep -E 'Active:|Loaded:' || true
+    nginx_version_output="$("${NGINX_SBIN}" -v 2>&1)"
+    log_info "${nginx_version_output}"
+    systemctl status nginx --no-pager
 )
 
 main "$@"

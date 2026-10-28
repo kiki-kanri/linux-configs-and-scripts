@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck shell=bash
 # shellcheck disable=SC2034
 
 # Package groups for build-nginx.sh.
@@ -23,6 +24,8 @@ readonly -a BUILD_TOOLS=(
     g++
     gcc
     git
+    gpg
+    gpgv
     make
     pkg-config
     rsync
