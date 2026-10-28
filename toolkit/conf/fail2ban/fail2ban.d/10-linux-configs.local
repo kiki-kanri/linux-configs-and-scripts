@@ -1,0 +1,7 @@
+# Managed by linux-configs-and-scripts.
+[Definition]
+allowipv6 = auto
+loglevel = INFO
+logtarget = /var/log/fail2ban.log
+# Retain history beyond the maximum seven-day ban.
+dbpurgeage = 8d

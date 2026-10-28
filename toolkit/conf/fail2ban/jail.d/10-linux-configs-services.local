@@ -1,0 +1,24 @@
+# Managed by linux-configs-and-scripts. Detected service jails are appended by setup.
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1
+# Only web jails exempt private reverse proxies and internal infrastructure.
+nginx_ignoreip = 127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 fc00::/7 fe80::/10
+bantime = 24h
+findtime = 10m
+maxretry = 3
+usedns = no
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 7d
+banaction = nftables[type=multiport]
+banaction_allports = nftables[type=allports]
+
+[recidive]
+enabled = true
+backend = polling
+logpath = /var/log/fail2ban.log
+banaction = %(banaction_allports)s
+bantime = 7d
+bantime.increment = false
+findtime = 1d
+maxretry = 3

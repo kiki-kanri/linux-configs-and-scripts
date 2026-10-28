@@ -1,411 +1,223 @@
 #!/usr/bin/env bash
-# Install and auto-configure Fail2Ban protections for detected services.
+
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
-JAIL_DEST="/etc/fail2ban/jail.d/10-linux-configs-services.local"
-FAIL2BAN_LOCAL_DEST="/etc/fail2ban/fail2ban.local"
-NGINX_DENY_ACTION_DEST="/etc/fail2ban/action.d/nginx-deny.conf"
-NGINX_DENY_CONF="/etc/nginx/conf.d/fail2ban-deny.conf"
-BANTIME="24h"
-FINDTIME="10m"
-MAXRETRY="3"
-# Never ban local/private infrastructure addresses.
-# This prevents nginx reverse proxies/SSL terminators on the LAN from being
-# written into /etc/nginx/conf.d/fail2ban-deny.conf and blocking all web traffic.
-IGNOREIP="127.0.0.1/8 ::1 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 fc00::/7 fe80::/10"
-NGINX_DENY_HEADER="# Managed by fail2ban nginx-deny action.
-# Banned IPs are appended below as nginx access-module deny directives."
+# Constants/Variables
+readonly FAIL2BAN_CONF_DIR="${REPO_ROOT}/toolkit/conf/fail2ban"
+readonly JAIL_DEST='/etc/fail2ban/jail.d/10-linux-configs-services.local'
 
-nginx_bin_candidates=(
-    /usr/sbin/nginx
-    /usr/local/sbin/nginx
-    /usr/local/nginx/sbin/nginx
-)
-
-jail_blocks=()
-
-append_jail() {
-    jail_blocks+=("$1")
-}
-
-apt_install_fail2ban() {
-    require_cmd apt-get
-
-    log_info "Updating package index..."
-    apt-get update
-
-    log_info "Installing Fail2Ban packages..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        fail2ban \
-        python3-pyinotify \
-        python3-systemd \
-        whois
-}
-
-fail2ban_filter_exists() {
-    local filter_name="$1"
-    [[ -f "/etc/fail2ban/filter.d/${filter_name}.conf" || -f "/etc/fail2ban/filter.d/${filter_name}.local" ]]
-}
-
-ufw_is_active() {
-    command_exists ufw || return 1
-    ufw status 2>/dev/null | grep -qi '^Status:[[:space:]]*active'
-}
-
-select_banaction_line() {
-    if ufw_is_active; then
-        printf 'banaction = ufw\n'
-    fi
-}
-
-detect_sshd_port() {
-    local config_file="/etc/ssh/sshd_config"
-    local detected=""
-
-    if [[ -x /usr/sbin/sshd ]]; then
-        detected="$(/usr/sbin/sshd -T 2>/dev/null | awk '$1 == "port" && $2 ~ /^[0-9]+$/ && !seen[$2]++ { ports = ports ? ports "," $2 : $2 } END { print ports }')"
-    fi
-
-    if [[ -z "${detected}" && -r "${config_file}" ]]; then
-        detected="$(awk 'tolower($1) == "port" && $2 ~ /^[0-9]+$/ && !seen[$2]++ { ports = ports ? ports "," $2 : $2 } END { print ports }' "${config_file}")"
-    fi
-
-    if [[ -n "${detected}" ]]; then
-        printf '%s\n' "${detected}"
-        return 0
-    fi
-
-    printf 'ssh\n'
-}
-
-add_sshd_jail() {
-    local port
-    port="$(detect_sshd_port)"
-
-    append_jail "$(
-        cat <<CONFIG
-[sshd]
-enabled = true
-port = ${port}
-backend = systemd
-mode = aggressive
-CONFIG
-    )"
-
-    log_info "Enabled sshd jail on port: ${port}"
-}
-
+# Functions
 first_existing_file() {
     local path
+
     for path in "$@"; do
-        [[ -f "${path}" ]] || continue
-        printf '%s\n' "${path}"
-        return 0
+        if [[ -f "${path}" ]]; then
+            printf '%s\n' "${path}"
+            return 0
+        fi
     done
 
-    return 1
+    # No matching log is normal on journal-only installations.
+    printf '\n'
 }
 
-add_log_jail() {
-    local jail_name="$1"
-    local port="$2"
-    local log_path="$3"
-    local label="${4:-${jail_name}}"
-    local action="${5:-}"
-    local action_line=""
+write_jail() {
+    local name="$1" port="$2" backend="$3" log_path="${4:-}"
 
-    [[ -n "${log_path}" ]] || return 0
-    fail2ban_filter_exists "${jail_name}" || return 0
-    [[ -z "${action}" ]] || action_line=$'\n'"${action}"
+    printf '\n[%s]\nenabled = true\nport = %s\nbackend = %s\n' "${name}" "${port}" "${backend}"
+    if [[ -n "${log_path}" ]]; then
+        printf 'logpath = %s\n' "${log_path}"
+    fi
 
-    append_jail "$(
-        cat <<CONFIG
-[${jail_name}]
-enabled = true
-port = ${port}
-backend = auto
-logpath = ${log_path}${action_line}
-CONFIG
-    )"
-
-    log_info "Enabled ${label} jail: ${log_path}"
+    log_info "Enabling Fail2Ban jail: ${name}" >&2
 }
 
-nginx_command() {
-    local candidate
+write_sshd_jail() {
+    local ports
 
-    if command_exists nginx; then
-        command -v nginx
+    if [[ ! -x /usr/sbin/sshd ]]; then
+        # Debian's package enables this jail even when OpenSSH is absent.
+        printf '\n[sshd]\nenabled = false\n'
         return 0
     fi
 
-    for candidate in "${nginx_bin_candidates[@]}"; do
-        [[ -x "${candidate}" ]] || continue
-        printf '%s\n' "${candidate}"
+    # Read the effective config, including Include directives and multiple ports.
+    ports="$(/usr/sbin/sshd -T | awk '$1 == "port" && !seen[$2]++ { ports = ports ? ports "," $2 : $2 } END { print ports }')"
+    if [[ -z "${ports}" ]]; then
+        log_error 'No SSH port found in the effective sshd configuration'
+        return 1
+    fi
+
+    write_jail sshd "${ports}" systemd
+    printf 'mode = aggressive\n'
+}
+
+write_nginx_jails() {
+    local name log_path blockfile nginx_config
+    local -a enabled_jails=()
+
+    if [[ ! -x /usr/sbin/nginx ]]; then
         return 0
+    fi
+
+    install -d -m 755 /etc/nginx/conf.d
+    for name in nginx-http-auth nginx-botsearch; do
+        case "${name}" in
+        nginx-http-auth) log_path='/var/log/nginx/error.log' ;;
+        nginx-botsearch) log_path='/var/log/nginx/access.log' ;;
+        esac
+
+        if [[ ! -f "${log_path}" ]]; then
+            log_warn "No matching log file; skipping jail: ${name}"
+            continue
+        fi
+
+        blockfile="/etc/nginx/conf.d/fail2ban-${name}.conf"
+        touch "${blockfile}"
+        chown root:root "${blockfile}"
+        chmod 644 "${blockfile}"
+        enabled_jails+=("${name}")
+
+        write_jail "${name}" http,https auto "${log_path}"
+        printf 'ignoreip = %%(nginx_ignoreip)s\naction = nginx-deny[name=%s]\n' "${name}"
     done
 
-    return 1
-}
+    if ((${#enabled_jails[@]} > 0)); then
+        nginx_config="$(/usr/sbin/nginx -T 2>&1)" || {
+            log_error "Nginx configuration test failed: ${nginx_config}"
+            return 1
+        }
 
-add_nginx_jails() {
-    local access_log=""
-    local error_log=""
-
-    nginx_command >/dev/null || return 0
-
-    access_log="$(first_existing_file /var/log/nginx/access.log /usr/local/nginx/logs/access.log 2>/dev/null || true)"
-    error_log="$(first_existing_file /var/log/nginx/error.log /usr/local/nginx/logs/error.log 2>/dev/null || true)"
-
-    add_log_jail nginx-http-auth http,https "${error_log}" nginx-http-auth "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
-    add_log_jail nginx-botsearch http,https "${access_log}" nginx-botsearch "action = nginx-deny[blockfile=${NGINX_DENY_CONF}]"
-}
-
-postfix_detected() {
-    [[ -x /usr/sbin/postfix || -d /etc/postfix ]]
-}
-
-dovecot_detected() {
-    [[ -x /usr/sbin/dovecot || -d /etc/dovecot ]]
-}
-
-add_mail_jails() {
-    local mail_log=""
-
-    mail_log="$(first_existing_file /var/log/mail.log /var/log/maillog 2>/dev/null || true)"
-    [[ -n "${mail_log}" ]] || return 0
-
-    if postfix_detected; then
-        add_log_jail postfix smtp,465,submission "${mail_log}"
-        add_log_jail postfix-sasl smtp,465,submission "${mail_log}"
-    fi
-
-    if dovecot_detected; then
-        add_log_jail dovecot imap,imaps,pop3,pop3s "${mail_log}"
+        for name in "${enabled_jails[@]}"; do
+            if ! grep -qF "# configuration file /etc/nginx/conf.d/fail2ban-${name}.conf:" <<<"${nginx_config}"; then
+                log_error "Nginx must include /etc/nginx/conf.d/*.conf; jail would be ineffective: ${name}"
+                return 1
+            fi
+        done
     fi
 }
 
-add_ftp_jails() {
-    local auth_log=""
-    local vsftpd_log=""
-    local pureftpd_log=""
+write_mail_jails() {
+    local mail_log backend name
 
-    auth_log="$(first_existing_file /var/log/auth.log /var/log/secure 2>/dev/null || true)"
-
-    if [[ -x /usr/sbin/vsftpd || -f /etc/vsftpd.conf || -f /var/log/vsftpd.log ]]; then
-        vsftpd_log="$(first_existing_file /var/log/vsftpd.log 2>/dev/null || true)"
-        add_log_jail vsftpd ftp,ftp-data,ftps,ftps-data "${vsftpd_log:-${auth_log}}"
+    mail_log="$(first_existing_file /var/log/mail.log /var/log/maillog)"
+    backend='systemd'
+    if [[ -n "${mail_log}" ]]; then
+        backend='auto'
     fi
 
-    if [[ -x /usr/sbin/pure-ftpd || -d /etc/pure-ftpd || -f /var/log/pure-ftpd/pure-ftpd.log ]]; then
-        pureftpd_log="$(first_existing_file /var/log/pure-ftpd/pure-ftpd.log /var/log/syslog 2>/dev/null || true)"
-        add_log_jail pure-ftpd ftp,ftp-data,ftps,ftps-data "${pureftpd_log}"
+    if [[ -x /usr/sbin/postfix || -d /etc/postfix ]]; then
+        for name in postfix postfix-sasl; do
+            write_jail "${name}" smtp,465,submission "${backend}" "${mail_log}"
+            if [[ "${name}" == 'postfix-sasl' ]]; then
+                # Upstream uses the postfix filter's auth mode, not postfix-sasl.conf.
+                printf 'filter = postfix[mode=auth]\n'
+            fi
+
+            if [[ "${backend}" == 'systemd' ]]; then
+                printf 'journalmatch = _SYSTEMD_UNIT=postfix.service _SYSTEMD_UNIT=postfix@-.service\n'
+            fi
+        done
     fi
-}
 
-add_recidive_jail() {
-    local fail2ban_log="/var/log/fail2ban.log"
-
-    fail2ban_filter_exists recidive || return 0
-    [[ -f "${fail2ban_log}" ]] || install -m 640 /dev/null "${fail2ban_log}"
-    chmod 640 "${fail2ban_log}"
-
-    append_jail "$(
-        cat <<CONFIG
-[recidive]
-enabled = true
-backend = auto
-logpath = ${fail2ban_log}
-bantime = 7d
-findtime = 1d
-maxretry = 3
-CONFIG
-    )"
-
-    log_info "Enabled recidive jail for repeat offenders."
-}
-
-write_nginx_deny_header() {
-    printf '%s\n' "${NGINX_DENY_HEADER}" >"${NGINX_DENY_CONF}"
-    chmod 644 "${NGINX_DENY_CONF}"
-}
-
-install_nginx_deny_action() {
-    local deny_dir
-    local nginx_bin
-
-    nginx_bin="$(nginx_command)" || return 0
-    deny_dir="$(dirname -- "${NGINX_DENY_CONF}")"
-    install -d -m 755 "$(dirname -- "${NGINX_DENY_ACTION_DEST}")" "${deny_dir}"
-
-    log_info "Installing nginx deny Fail2Ban action: ${NGINX_DENY_ACTION_DEST}"
-    cat >"${NGINX_DENY_ACTION_DEST}" <<'CONFIG'
-# Managed by linux-configs-and-scripts/toolkit/security/setup-fail2ban.sh
-
-[Definition]
-actionstart = /bin/sh -c 'install -d -m 755 "$(dirname -- "<blockfile>")"; touch "<blockfile>"; chmod 644 "<blockfile>"; <nginxcmd> -t'
-actionstop = /bin/true
-actioncheck = test -f <blockfile>
-actionban = /bin/sh -c 'line="deny <ip>;"; grep -qxF "$line" "<blockfile>" || echo "$line" >> "<blockfile>"; <nginxcmd> -t && <nginxcmd> -s reload'
-actionunban = /bin/sh -c 'if [ -f "<blockfile>" ]; then sed -i "\#^deny <ip>;\$#d" "<blockfile>"; <nginxcmd> -t && <nginxcmd> -s reload; fi'
-
-[Init]
-blockfile = /etc/nginx/conf.d/fail2ban-deny.conf
-CONFIG
-    printf 'nginxcmd = %s\n' "${nginx_bin}" >>"${NGINX_DENY_ACTION_DEST}"
-    chmod 644 "${NGINX_DENY_ACTION_DEST}"
-
-    [[ -f "${NGINX_DENY_CONF}" ]] || write_nginx_deny_header
-}
-
-reset_nginx_deny_state() {
-    local deny_dir
-    local nginx_bin
-
-    nginx_bin="$(nginx_command)" || return 0
-    deny_dir="$(dirname -- "${NGINX_DENY_CONF}")"
-    install -d -m 755 "${deny_dir}"
-
-    log_info "Resetting nginx Fail2Ban deny state: ${NGINX_DENY_CONF}"
-    write_nginx_deny_header
-
-    if "${nginx_bin}" -t >/dev/null 2>&1; then
-        "${nginx_bin}" -s reload >/dev/null 2>&1 || log_warn "Could not reload nginx after resetting Fail2Ban deny state."
-    else
-        log_warn "nginx config test failed after resetting Fail2Ban deny state; nginx was not reloaded."
+    if [[ -x /usr/sbin/dovecot || -d /etc/dovecot ]]; then
+        write_jail dovecot imap,imaps,pop3,pop3s "${backend}" "${mail_log}"
     fi
 }
 
-write_fail2ban_daemon_config() {
-    local end_marker="# END linux-configs-and-scripts"
-    local start_marker="# BEGIN linux-configs-and-scripts"
-    local tmp
+write_ftp_jails() {
+    local log_path
 
-    tmp="$(mktemp)"
-    if [[ -f "${FAIL2BAN_LOCAL_DEST}" ]]; then
-        awk -v start="${start_marker}" -v end="${end_marker}" '
-            $0 == start { skip = 1; next }
-            $0 == end { skip = 0; next }
-            !skip { print }
-        ' "${FAIL2BAN_LOCAL_DEST}" >"${tmp}"
+    if [[ -x /usr/sbin/vsftpd || -f /etc/vsftpd.conf ]]; then
+        log_path="$(first_existing_file /var/log/vsftpd.log /var/log/auth.log /var/log/secure)"
+        if [[ -n "${log_path}" ]]; then
+            write_jail vsftpd ftp,ftp-data,ftps,ftps-data auto "${log_path}"
+        else
+            write_jail vsftpd ftp,ftp-data,ftps,ftps-data systemd
+            printf 'journalmatch = _SYSTEMD_UNIT=vsftpd.service + _COMM=vsftpd\n'
+        fi
     fi
 
-    {
-        cat "${tmp}"
-        cat <<CONFIG
-${start_marker}
-[Definition]
-allowipv6 = auto
-${end_marker}
-CONFIG
-    } >"${FAIL2BAN_LOCAL_DEST}"
-
-    rm -f "${tmp}"
-    chmod 644 "${FAIL2BAN_LOCAL_DEST}"
-}
-
-write_jail_config() {
-    local banaction_line
-    banaction_line="$(select_banaction_line)"
-
-    log_info "Writing Fail2Ban jail config: ${JAIL_DEST}"
-    install -d -m 755 "$(dirname -- "${JAIL_DEST}")"
-
-    {
-        cat <<CONFIG
-# Managed by linux-configs-and-scripts/toolkit/security/setup-fail2ban.sh
-# Auto-generated from detected local services. Re-run the script after service/log changes.
-
-[DEFAULT]
-ignoreip = ${IGNOREIP}
-bantime = ${BANTIME}
-findtime = ${FINDTIME}
-maxretry = ${MAXRETRY}
-usedns = no
-bantime.increment = true
-bantime.factor = 2
-bantime.maxtime = 7d
-${banaction_line}
-CONFIG
-        printf '\n%s\n' "${jail_blocks[@]}"
-    } >"${JAIL_DEST}"
-
-    chmod 644 "${JAIL_DEST}"
+    if [[ -x /usr/sbin/pure-ftpd || -d /etc/pure-ftpd ]]; then
+        # Pure-FTPd's transfer log is not an authentication failure log.
+        log_path="$(first_existing_file /var/log/syslog /var/log/auth.log /var/log/messages)"
+        if [[ -n "${log_path}" ]]; then
+            write_jail pure-ftpd ftp,ftp-data,ftps,ftps-data auto "${log_path}"
+        else
+            write_jail pure-ftpd ftp,ftp-data,ftps,ftps-data systemd
+        fi
+    fi
 }
 
 wait_for_fail2ban() {
     local attempt
 
-    command_exists fail2ban-client || return 0
-
-    for ((attempt = 1; attempt <= 10; attempt += 1)); do
+    # The packaged unit is Type=simple: systemctl returns before the socket is ready.
+    for ((attempt = 0; attempt < 15; attempt++)); do
         if fail2ban-client ping >/dev/null 2>&1; then
             return 0
         fi
         sleep 1
     done
 
-    log_error "Fail2Ban did not become ready after restart."
-    if command_exists systemctl; then
-        systemctl --no-pager --full status fail2ban >&2 || true
-    fi
+    log_error 'Fail2Ban did not become ready within 15 seconds; inspect journalctl -u fail2ban'
     return 1
 }
 
-restart_fail2ban() {
-    if command_exists fail2ban-client; then
-        log_info "Checking generated Fail2Ban config..."
-        fail2ban-client -t
-    fi
+# Run
+main() (
+    local ID VERSION_ID PRETTY_NAME
 
-    if command_exists systemctl; then
-        log_info "Enabling and restarting fail2ban service..."
-        systemctl enable fail2ban
-        systemctl restart fail2ban
-        wait_for_fail2ban
-        return 0
-    fi
+    require_root
+    source /etc/os-release
+    case "${ID}:${VERSION_ID}" in
+    debian:12 | debian:13 | ubuntu:24.04 | ubuntu:26.04) ;;
+    *)
+        log_error "Unsupported operating system release: ${PRETTY_NAME}"
+        exit 1
+        ;;
+    esac
 
-    if command_exists service; then
-        log_info "Restarting fail2ban service..."
-        service fail2ban restart
-        wait_for_fail2ban
-        return 0
-    fi
+    require_cmd apt-get systemctl
 
-    log_warn "No supported service manager found; restart fail2ban manually."
-}
+    log_info 'Updating package index...'
+    apt-get update
+    log_info 'Installing Fail2Ban packages...'
+    apt-get install -y --no-install-recommends fail2ban nftables python3-pyinotify python3-systemd
 
-show_status() {
-    command_exists fail2ban-client || return 0
+    log_info 'Installing Fail2Ban configuration...'
+    install -D -o root -g root -m 644 "${FAIL2BAN_CONF_DIR}/fail2ban.d/10-linux-configs.local" /etc/fail2ban/fail2ban.d/10-linux-configs.local
+    install -D -o root -g root -m 644 "${FAIL2BAN_CONF_DIR}/action.d/nginx-deny.conf" /etc/fail2ban/action.d/nginx-deny.conf
+    install -D -o root -g root -m 644 "${FAIL2BAN_CONF_DIR}/jail.d/10-linux-configs-services.local" "${JAIL_DEST}"
+    install -D -o root -g root -m 644 "${REPO_ROOT}/toolkit/conf/systemd/fail2ban.service.d/10-nginx-ordering.conf" /etc/systemd/system/fail2ban.service.d/10-nginx-ordering.conf
+    touch /var/log/fail2ban.log
+    chmod 640 /var/log/fail2ban.log
 
-    log_info "Fail2Ban status:"
-    fail2ban-client status || log_warn "Could not read Fail2Ban status."
-}
+    {
+        write_sshd_jail
+        write_nginx_jails
+        write_mail_jails
+        write_ftp_jails
+    } >>"${JAIL_DEST}"
 
-if (($# > 0)); then
-    log_error "This script does not accept arguments; edit the script constants if policy changes are needed."
-    exit 1
-fi
+    log_info 'Validating Fail2Ban configuration...'
+    fail2ban-client -t
 
-require_root
-require_cmd awk cat chmod grep install mktemp rm dirname
+    log_info 'Enabling and restarting Fail2Ban...'
+    systemctl daemon-reload
+    systemctl enable fail2ban
+    systemctl restart fail2ban
+    wait_for_fail2ban
+    fail2ban-client status
 
-apt_install_fail2ban
-add_sshd_jail
-add_nginx_jails
-add_mail_jails
-add_ftp_jails
-add_recidive_jail
-install_nginx_deny_action
-reset_nginx_deny_state
-write_fail2ban_daemon_config
-write_jail_config
-restart_fail2ban
-show_status
+    log_success 'Fail2Ban protection configured for detected services'
+)
 
-log_success "Fail2Ban protection is configured for detected services."
+main "$@"
