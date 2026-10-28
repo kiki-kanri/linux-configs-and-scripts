@@ -1,60 +1,67 @@
 #!/usr/bin/env bash
-# Install or refresh Docker Engine with Docker's official installer.
+
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-# shellcheck disable=SC1091
-source "$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/libs/common.sh"
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/../../libs/common.sh"
 
-INSTALL_URL="https://get.docker.com"
-force=false
-installer=""
+# Constants/Variables
+readonly INSTALL_URL='https://get.docker.com'
 
-cleanup() {
-    [[ -z "${installer}" ]] || rm -f "${installer}"
-}
+# Run
+main() (
+    local force=false
+    local work_dir docker_version compose_version
+    local ID VERSION_ID PRETTY_NAME
 
-while (($# > 0)); do
-    case "$1" in
-    -f)
-        force=true
+    while (($# > 0)); do
+        case "$1" in
+        -f) force=true ;;
+        *)
+            log_error "Unknown argument: $1"
+            exit 2
+            ;;
+        esac
         shift
-        ;;
-    -*)
-        log_error "Unknown option: $1"
-        exit 1
-        ;;
+    done
+
+    require_root
+    source /etc/os-release
+    case "${ID}:${VERSION_ID}" in
+    debian:12 | debian:13 | ubuntu:24.04 | ubuntu:26.04) ;;
     *)
-        log_error "Unexpected argument: $1"
+        log_error "Unsupported operating system release: ${PRETTY_NAME}"
         exit 1
         ;;
     esac
-done
 
-require_root
-require_cmd curl sh mktemp rm
+    require_cmd curl sh systemctl
+    if command_exists docker && [[ "${force}" == false ]]; then
+        docker_version="$(docker --version)"
+        log_info "Docker is already installed: ${docker_version}; use -f to run the installer again"
+    else
+        work_dir="$(mktemp -d)"
+        trap 'rm -rf -- "${work_dir}"' EXIT
 
-if command_exists docker && [[ "${force}" == false ]]; then
-    log_info "Docker is already installed: $(docker --version 2>/dev/null || printf 'version unknown')"
-    log_info "Use -f to run Docker's installer again."
-else
-    installer="$(mktemp)"
-    trap cleanup EXIT
+        log_info 'Downloading Docker official installer...'
+        curl -fsSL "${INSTALL_URL}" -o "${work_dir}/get-docker.sh"
 
-    log_info "Downloading Docker official installer..."
-    curl -fsSL --output "${installer}" "${INSTALL_URL}"
+        log_info 'Running Docker official installer...'
+        sh "${work_dir}/get-docker.sh"
+    fi
 
-    log_info "Running Docker official installer..."
-    sh "${installer}"
-    log_success "Docker installer completed."
-fi
+    log_info 'Enabling and starting Docker service...'
+    systemctl enable --now docker
 
-if command_exists systemctl; then
-    log_info "Enabling and starting Docker service..."
-    systemctl enable --now docker || log_warn "Could not enable/start Docker service. Check systemd status manually."
-else
-    log_warn "systemctl not found; skipping Docker service enable/start."
-fi
+    docker_version="$(docker --version)"
+    compose_version="$(docker compose version)"
+    log_info "Docker version: ${docker_version}"
+    log_info "Compose version: ${compose_version}"
+    log_success 'Docker setup complete'
+)
 
-log_info "Docker version: $(docker --version 2>/dev/null || printf 'N/A')"
-log_info "Compose version: $(docker compose version 2>/dev/null || docker-compose --version 2>/dev/null || printf 'N/A')"
+main "$@"
