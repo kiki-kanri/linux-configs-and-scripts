@@ -1,0 +1,46 @@
+#include <tunables/global>
+
+# Shared baseline for build-nginx.sh; validate site-specific access before enforcing.
+profile nginx /usr/sbin/nginx flags=(complain) {
+    #include <abstractions/base>
+    #include <abstractions/nameservice>
+    #include <abstractions/openssl>
+
+    capability chown,
+    capability net_bind_service,
+    capability setgid,
+    capability setuid,
+    capability sys_resource,
+
+    # HTTP(S), upstream connections, DNS, HTTP/3 and worker IPC.
+    network inet stream,
+    network inet dgram,
+    network inet6 stream,
+    network inet6 dgram,
+    network unix stream,
+    network unix dgram,
+
+    /usr/sbin/nginx mrix,
+    /usr/lib/nginx/modules/*.so mr,
+    /opt/quictls-for-nginx/build/**.so* mr,
+    /usr/share/GeoIP/ r,
+    /usr/share/GeoIP/** r,
+    /etc/ssl/certs/ r,
+    /etc/ssl/certs/** r,
+    /usr/share/ca-certificates/** r,
+
+    # Includes certificates and Fail2Ban deny files; Nginx never updates these.
+    /etc/nginx/ r,
+    /etc/nginx/** r,
+
+    /var/log/nginx/ rw,
+    /var/log/nginx/** rw,
+    /var/cache/nginx/ rw,
+    /var/cache/nginx/** rwk,
+    /run/nginx.pid rw,
+    /run/nginx.pid.oldbin rw,
+    /run/nginx.lock* rwk,
+
+    # Website roots, external certificate paths and upstream socket access belong here.
+    #include if exists <local/usr.sbin.nginx>
+}
