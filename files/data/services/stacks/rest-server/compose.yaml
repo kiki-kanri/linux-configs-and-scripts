@@ -1,0 +1,20 @@
+services:
+  rest-server:
+    container_name: rest-server
+    environment:
+      OPTIONS: --append-only --private-repos
+      PASSWORD_FILE: /auth/.htpasswd
+    image: 'restic/rest-server:0.14.0'
+    logging:
+      driver: json-file
+      options:
+        max-file: '2'
+        max-size: 10m
+    ports:
+      - '${REST_SERVER_EXPOSE_HOST:?must be set}:${REST_SERVER_EXPOSE_PORT:?must be set}:8000'
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - './auth:/auth'
+      - './data:/data'
