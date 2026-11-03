@@ -18,10 +18,18 @@ log_success() {
     printf '[ OK ] %s\n' "$*"
 }
 
+# Staged next to the target so the rename is atomic.
+write_unit() {
+    local unit_file="${SYSTEMD_DIR}/$1"
+
+    cat >"${unit_file}.new"
+    mv -fT -- "${unit_file}.new" "${unit_file}"
+}
+
 # Run
 main() {
     # ExecStart follows wherever the stack was copied to.
-    cat >"${SYSTEMD_DIR}/${UNIT_NAME}.service" <<EOF
+    write_unit "${UNIT_NAME}.service" <<EOF
 [Unit]
 Description=Prune and check restic repositories of rest-server
 Wants=docker.service
@@ -32,7 +40,7 @@ Type=oneshot
 ExecStart=${SCRIPT_DIR}/prune.sh
 EOF
 
-    cat >"${SYSTEMD_DIR}/${UNIT_NAME}.timer" <<'EOF'
+    write_unit "${UNIT_NAME}.timer" <<'EOF'
 [Unit]
 Description=Run rest-server-prune daily
 

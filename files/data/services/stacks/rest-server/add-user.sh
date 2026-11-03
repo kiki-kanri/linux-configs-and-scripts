@@ -30,9 +30,9 @@ generate_password() {
 
 # Run
 main() {
+    local existing_users
     local repository_password
     local rest_password
-    local status=0
     local username
 
     read -r -p 'Username (the backup machine hostname): ' username
@@ -43,19 +43,13 @@ main() {
         exit 1
     fi
 
-    # create_user on an existing user silently resets the password that machine is using.
-    docker exec "${CONTAINER_NAME}" grep -q -- "^${username}:" /auth/.htpasswd || status=$?
-    case "${status}" in
-    0)
+    # create_user on an existing user silently resets the password that machine is using. Compared as a fixed string
+    # since '.' in a username would be a regex wildcard.
+    existing_users="$(docker exec "${CONTAINER_NAME}" cut -d: -f1 /auth/.htpasswd)"
+    if grep -qxF -- "${username}" <<<"${existing_users}"; then
         log_error "User already exists: ${username}"
         exit 1
-        ;;
-    1) ;;
-    *)
-        log_error "Failed to read /auth/.htpasswd in ${CONTAINER_NAME}"
-        exit 1
-        ;;
-    esac
+    fi
 
     # An existing file may already encrypt a repository left over from a deleted user.
     if [[ -e "${REPOSITORY_PASSWORDS_DIR}/${username}" ]]; then
@@ -76,7 +70,12 @@ main() {
 
     mv -fT -- "${REPOSITORY_PASSWORDS_DIR}/${username}.new" "${REPOSITORY_PASSWORDS_DIR}/${username}"
 
-    docker exec "${CONTAINER_NAME}" create_user "${username}" "${rest_password}" >/dev/null
+    # Removed on failure so a retry is not refused by the leftover password file.
+    if ! docker exec "${CONTAINER_NAME}" create_user "${username}" "${rest_password}" >/dev/null; then
+        rm -f -- "${REPOSITORY_PASSWORDS_DIR}/${username}"
+        log_error "Failed to create user: ${username}"
+        exit 1
+    fi
 
     # Reload now instead of waiting for rest-server's 30-second file check.
     docker kill --signal=HUP "${CONTAINER_NAME}" >/dev/null
