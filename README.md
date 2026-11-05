@@ -1,17 +1,35 @@
 # linux-configs-and-scripts
 
-## Run bootstrap for ubuntu 24.04
+## Run bootstrap for Ubuntu 24.04 / 26.04
 
 ```bash
-sudo apt-get update && \
-    sudo apt-get install -y curl && \
+sudo bash -c "$(
+    cat <<'BOOTSTRAP'
+set -euo pipefail
+
+main() (
+    local work_dir
+
+    apt-get update
+    apt-get install -y ca-certificates curl
+
+    work_dir="$(mktemp -d /tmp/linux-configs-and-scripts-bootstrap.XXXXXX)"
+    trap 'rm -rf -- "${work_dir}"' EXIT
+
     curl \
         -fsSL \
         -H 'Cache-Control: no-cache, no-store, must-revalidate' \
         -H 'Expires: 0' \
         -H 'Pragma: no-cache' \
-        "https://raw.githubusercontent.com/kiki-kanri/linux-configs-and-scripts/refs/heads/main/bootstrap/ubuntu/setup/run.sh?t=$(openssl rand -hex 8)" \
-        | sudo bash -
+        -o "${work_dir}/run.sh" \
+        "https://raw.githubusercontent.com/kiki-kanri/linux-configs-and-scripts/refs/heads/main/bootstrap/ubuntu/setup/run.sh?t=$(date +%s%N)"
+
+    bash "${work_dir}/run.sh"
+)
+
+main "$@"
+BOOTSTRAP
+)"
 ```
 
 ## Nginx: restrict selected sites to Cloudflare

@@ -15,7 +15,7 @@ main() (
     local work_dir commit
     local ID VERSION_ID PRETTY_NAME
 
-    # This curl | bash entry point has no repository libraries until the clone exists.
+    # This downloaded entry point has no repository libraries until the clone exists.
     if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
         printf '[setup-ubuntu] ERROR: This script must be run as root\n' >&2
         exit 1
