@@ -10,13 +10,14 @@ readonly SCRIPT_DIR
 source "${SCRIPT_DIR}/../../libs/common.sh"
 
 # Constants/Variables
+readonly VIM_MODULES_SRC="${REPO_ROOT}/toolkit/conf/vim/vimrc.d"
+readonly VIM_MODULES_DEST='/etc/vim/vimrc.d'
 readonly VIMRC_SRC="${REPO_ROOT}/toolkit/conf/vim/vimrc"
 readonly VIMRC_DEST='/etc/vim/vimrc'
 
 # Run
-main() (
+main() {
     local ID VERSION_ID PRETTY_NAME
-    local vimrc_tmp=''
 
     require_root
     source /etc/os-release
@@ -32,13 +33,11 @@ main() (
     vim --clean -u "${VIMRC_SRC}" -i NONE -n -es -c 'quitall'
 
     log_info "Installing Vim configuration: ${VIMRC_DEST}..."
-    install -d -o root -g root -m 755 /etc/vim
-    vimrc_tmp="$(mktemp "${VIMRC_DEST}.XXXXXX")"
-    trap 'rm -f -- "${vimrc_tmp}"' EXIT
-    install -o root -g root -m 644 "${VIMRC_SRC}" "${vimrc_tmp}"
-    mv -f -- "${vimrc_tmp}" "${VIMRC_DEST}"
+    install -d -o root -g root -m 755 /etc/vim "${VIM_MODULES_DEST}"
+    install -o root -g root -m 644 "${VIM_MODULES_SRC}"/*.vim "${VIM_MODULES_DEST}/"
+    install -o root -g root -m 644 "${VIMRC_SRC}" "${VIMRC_DEST}"
 
     log_success 'Vim configuration installed'
-)
+}
 
 main "$@"
