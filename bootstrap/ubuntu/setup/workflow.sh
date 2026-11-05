@@ -30,9 +30,13 @@ setup_ubuntu() {
     install_bootstrap_files
     configure_bootstrap_access "${ssh_port}"
     sync_bootstrap_home_dirs
+    configure_package_managers
     configure_bootstrap_system "${timezone}"
+
     install_common_tools
     configure_system_tuning
+    configure_common_services
+
     install_scripts_repository
 
     log_success 'Bootstrap complete; reboot is recommended'

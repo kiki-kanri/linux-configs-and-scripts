@@ -22,6 +22,14 @@ configure_system_tuning() {
     "${TOOLKIT_DIR}/security/setup-kernel-security.sh"
 }
 
+configure_common_services() {
+    "${TOOLKIT_DIR}/security/setup-cve-2026-98432.sh"
+    "${TOOLKIT_DIR}/security/setup-nginx-apparmor.sh"
+    "${TOOLKIT_DIR}/service/setup-cloudflare-nginx.sh"
+    "${TOOLKIT_DIR}/service/setup-logrotate-nginx.sh"
+    "${TOOLKIT_DIR}/security/setup-fail2ban.sh"
+}
+
 install_scripts_repository() {
     local commit
 

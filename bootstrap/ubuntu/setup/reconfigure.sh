@@ -32,15 +32,12 @@ main() {
 
     "${TOOLKIT_DIR}/install/install-base-packages.sh"
     reconfigure_bootstrap_files
+    configure_package_managers
     "${TOOLKIT_DIR}/init/disable-motds.sh"
 
     install_common_tools
     configure_system_tuning
-
-    "${TOOLKIT_DIR}/security/setup-nginx-apparmor.sh"
-    "${TOOLKIT_DIR}/service/setup-cloudflare-nginx.sh"
-    "${TOOLKIT_DIR}/service/setup-logrotate-nginx.sh"
-    "${TOOLKIT_DIR}/security/setup-fail2ban.sh"
+    configure_common_services
 
     log_success 'Ubuntu reconfiguration complete'
 }

@@ -99,12 +99,10 @@ install_package_manager_configs() {
     done
 }
 
-reconfigure_bootstrap_files() {
+configure_package_managers() {
     local home_dir template_dir
 
-    log_info 'Reapplying managed configuration and scripts...'
     rm -f /etc/npmrc /etc/pnpm/rc /etc/bun/bunfig.toml /etc/skel/.config/pnpm/rc
-    install_manifest_files "${RECONFIGURE_FILES_MANIFEST}"
 
     for home_dir in /root /home/*; do
         [[ -d "${home_dir}" ]] || continue
@@ -118,6 +116,11 @@ reconfigure_bootstrap_files() {
         log_info "Installing package-manager configuration for: ${home_dir}..."
         install_package_manager_configs "${home_dir}" "${template_dir}"
     done
+}
+
+reconfigure_bootstrap_files() {
+    log_info 'Reapplying managed configuration and scripts...'
+    install_manifest_files "${RECONFIGURE_FILES_MANIFEST}"
 
     log_success 'Managed configuration and scripts reapplied'
 }
