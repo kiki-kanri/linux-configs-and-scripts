@@ -17,4 +17,5 @@
 0700 /scripts/libs/command.sh
 0700 /scripts/libs/common.sh
 0700 /scripts/libs/log.sh
+0700 /scripts/remove-user.sh
 0700 /scripts/upgrade-packages.sh
