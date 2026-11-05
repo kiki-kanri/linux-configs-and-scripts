@@ -11,6 +11,7 @@ install_common_tools() {
     "${TOOLKIT_DIR}/install/install-ldu.sh"
     "${TOOLKIT_DIR}/install/install-7zip.sh"
     "${TOOLKIT_DIR}/install/install-cat-motd.sh"
+    "${TOOLKIT_DIR}/init/setup-vim.sh"
 
     # A formatter is optional; its download failure must not abort provisioning.
     log_info 'Installing optional shfmt...'

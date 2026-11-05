@@ -1,0 +1,259 @@
+set nocompatible
+runtime! debian.vim
+
+" System settings must not be overwritten by a later defaults.vim load.
+let g:skip_defaults_vim = 1
+let mapleader = ' '
+
+syntax enable
+filetype plugin indent on
+
+" Keep a usable palette over SSH without requiring true color or special fonts.
+set background=dark
+set notermguicolors
+if $COLORTERM =~? 'truecolor\|24bit' || &term =~# '-direct$'
+    set termguicolors
+endif
+colorscheme habamax
+
+set encoding=utf-8
+set number
+set norelativenumber
+set cursorline
+set laststatus=2
+set showcmd
+set showmode
+set showmatch
+set scrolloff=5
+set sidescrolloff=8
+set sidescroll=1
+set nowrap
+set linebreak
+set breakindent
+set splitbelow
+set splitright
+
+let &statusline = ' %<%f %h%m%r%=%{&paste?"PASTE ":""}'
+    \ . ' %y %{&fileencoding==#""?&encoding:&fileencoding}'
+    \ . ' [%{&fileformat}] %l:%c %p%%  F1:keys '
+
+set expandtab
+set tabstop=4
+set shiftwidth=4
+set softtabstop=4
+set autoindent
+set smarttab
+set backspace=indent,eol,start
+set nolist
+set listchars=tab:>-,trail:.,nbsp:+
+
+set ignorecase
+set smartcase
+set incsearch
+set hlsearch
+set wildmenu
+set wildmode=longest:full,full
+set wildoptions=pum
+set wildignore+=*.swp,*.swo,*~,*.o,*.pyc
+set complete=.,w,b,u
+set completeopt=menuone,noselect
+set pumheight=12
+
+" Keep edits in memory when switching files; never save them implicitly.
+set hidden
+set confirm
+set noautowrite
+set noautowriteall
+set noautoread
+set nomodeline
+" Terminal selection/copy must work even without a remote clipboard provider.
+set mouse=
+set pastetoggle=<F2>
+
+let g:netrw_banner = 0
+let g:netrw_liststyle = 3
+let g:netrw_winsize = 25
+let g:netrw_keepdir = 1
+
+function! s:toggle_explorer() abort
+    let explorers = filter(getwininfo(), {_, win ->
+        \ win.tabnr == tabpagenr() && getbufvar(win.bufnr, '&filetype') ==# 'netrw'})
+    if empty(explorers)
+        execute 'Lexplore ' . fnameescape(expand('%:p:h'))
+    else
+        Lexplore
+    endif
+endfunction
+
+function! s:set_disk_diff(enabled) abort
+    let command = a:enabled ? 'if !&diff | diffthis | endif' : 'if &diff | diffoff | endif'
+    for preview in filter(getwininfo(), {_, win ->
+        \ win.tabnr == tabpagenr() && getbufvar(win.bufnr, 'linux_configs_diff_source', 0) != 0})
+        let source = getbufvar(preview.bufnr, 'linux_configs_diff_source')
+        if a:enabled
+            if !getbufvar(preview.bufnr, 'linux_configs_diff_resume', 0) || win_id2win(source) == 0
+                continue
+            endif
+        else
+            call setbufvar(preview.bufnr, 'linux_configs_diff_resume', getwinvar(preview.winnr, '&diff'))
+        endif
+        if win_id2win(source) > 0
+            call win_execute(source, command)
+        endif
+        call win_execute(preview.winid, command)
+    endfor
+endfunction
+
+function! s:toggle_disk_diff() abort
+    let previews = filter(getwininfo(), {_, win ->
+        \ win.tabnr == tabpagenr() && getbufvar(win.bufnr, 'linux_configs_diff_source', 0) != 0})
+    if !empty(previews)
+        let source = getbufvar(previews[0].bufnr, 'linux_configs_diff_source')
+        if winnr('$') == 1
+            enew
+        else
+            call win_execute(previews[0].winid, 'close')
+        endif
+        if win_id2win(source) > 0
+            call win_gotoid(source)
+        endif
+        return
+    endif
+
+    let path = expand('%:p')
+    if &buftype !=# '' || !filereadable(path)
+        echoerr 'Open an existing file before comparing it with disk'
+        return
+    endif
+    if !empty(filter(getwininfo(), {_, win ->
+        \ win.tabnr == tabpagenr() && getwinvar(win.winnr, '&diff')}))
+        echoerr 'Leave the current tab diff session before comparing with disk'
+        return
+    endif
+
+    let source = win_getid()
+    let filetype = &filetype
+    let view = winsaveview()
+    keepalt vertical new
+    setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+    " Keep a real placeholder so :read cannot discard the initial empty line.
+    call setline(1, '[disk snapshot]')
+    execute 'silent keepalt read ++edit ' . fnameescape(path)
+    silent 1delete _
+    let &l:filetype = filetype
+    let b:linux_configs_diff_source = source
+    let b:linux_configs_disk_path = path
+    let &l:statusline = ' [DISK - read only] %<%{b:linux_configs_disk_path} %= %l:%c '
+    setlocal readonly nomodifiable nomodified
+    diffthis
+    call win_gotoid(source)
+    diffthis
+    call winrestview(view)
+endfunction
+
+function! s:search_configs(pattern, directory) abort
+    if empty(a:pattern) || empty(a:directory)
+        return
+    endif
+    if !executable('rg')
+        echoerr 'ripgrep is not installed'
+        return
+    endif
+    let directory = fnamemodify(a:directory, ':p')
+    if !isdirectory(directory) || resolve(directory) ==# '/'
+        echoerr 'Choose an existing configuration directory, not /'
+        return
+    endif
+
+    let output = systemlist('rg --no-config --vimgrep --fixed-strings --smart-case'
+        \ . ' --hidden --follow --glob ' . shellescape('!.git')
+        \ . ' -- ' . shellescape(a:pattern) . ' ' . shellescape(directory))
+    if v:shell_error > 1
+        echoerr 'Search failed: ' . join(output, "\n")
+        return
+    endif
+    call setqflist([], ' ', {
+        \ 'title': 'Config search: ' . a:pattern,
+        \ 'lines': output,
+        \ 'efm': '%f:%l:%c:%m',
+        \ })
+    if empty(output)
+        cclose
+        echomsg 'No matches'
+    else
+        botright copen
+    endif
+endfunction
+
+function! s:show_shortcuts() abort
+    call popup_menu([
+        \ 'Normal mode: press Space, then the next key.',
+        \ '',
+        \ 'Space w / q    Save / close (asks about unsaved edits)',
+        \ 'Space e        Toggle file tree beside the current file',
+        \ 'Space b        List buffers, then type a buffer number',
+        \ '[b / ]b        Previous / next buffer',
+        \ 'Space d        Toggle comparison with the saved file',
+        \ 'Space f        Search literal text in a chosen directory',
+        \ 'Space c        Show search results; Enter opens a match',
+        \ '[q / ]q        Previous / next search result',
+        \ 'Space u        Check for external file changes',
+        \ 'Space v / s    Vertical / horizontal split',
+        \ 'Ctrl-w h/j/k/l Move between windows',
+        \ 'Space /        Clear search highlighting',
+        \ 'Space n / r    Toggle absolute / relative line numbers',
+        \ 'Space l / z    Toggle whitespace markers / line wrapping',
+        \ 'Mouse drag     Select text with the terminal, not Vim',
+        \ 'Copy           Use terminal copy / copy-on-selection',
+        \ 'F2             Toggle paste mode for older terminals',
+        \ 'Ctrl-n / p     Word completion in Insert mode',
+        \ ':e + Tab       Complete file paths; :help opens Vim help',
+        \ ], {
+        \ 'title': ' Vim shortcuts - j/k scroll, Esc closes ',
+        \ 'padding': [0, 1, 0, 1],
+        \ 'maxheight': 18,
+        \ 'maxwidth': 72,
+        \ })
+endfunction
+
+command! -nargs=+ ConfigSearch call <SID>search_configs(<q-args>, input('Directory: ', expand('%:p:h'), 'dir'))
+
+nnoremap <silent> <F1> :call <SID>show_shortcuts()<CR>
+nnoremap <silent> <leader>? :call <SID>show_shortcuts()<CR>
+nnoremap <silent> <leader>w :write<CR>
+nnoremap <silent> <leader>q :confirm quit<CR>
+nnoremap <silent> <leader>e :call <SID>toggle_explorer()<CR>
+nnoremap <silent> <leader>d :call <SID>toggle_disk_diff()<CR>
+nnoremap <leader>f :ConfigSearch<Space>
+nnoremap <silent> <leader>c :copen<CR>
+nnoremap <silent> [q :cprevious<CR>
+nnoremap <silent> ]q :cnext<CR>
+nnoremap <silent> <leader>u :checktime<CR>
+nnoremap <leader>b :ls<CR>:buffer<Space>
+nnoremap <silent> [b :bprevious<CR>
+nnoremap <silent> ]b :bnext<CR>
+nnoremap <silent> <leader>v :vsplit<CR>
+nnoremap <silent> <leader>s :split<CR>
+nnoremap <silent> <leader>/ :nohlsearch<CR>
+nnoremap <silent> <leader>n :setlocal number!<CR>
+nnoremap <silent> <leader>r :setlocal relativenumber!<CR>
+nnoremap <silent> <leader>l :setlocal list!<CR>
+nnoremap <silent> <leader>z :setlocal wrap!<CR>
+xnoremap < <gv
+xnoremap > >gv
+
+augroup linux_configs_vim
+    autocmd!
+    autocmd FocusGained,BufEnter * if mode() ==# 'n' && getcmdwintype() ==# '' | checktime | endif
+    " Ctrl-w T recreates the window; suspend before it can copy stale diff options.
+    autocmd TabLeave * call <SID>set_disk_diff(0)
+    autocmd TabEnter * call <SID>set_disk_diff(1)
+    autocmd BufWinLeave * if exists('b:linux_configs_diff_source') | call <SID>set_disk_diff(0) | endif
+    " Nginx site/snippet files often have no extension.
+    autocmd BufRead,BufNewFile */nginx/sites-available/*,*/nginx/sites-enabled/*,*/nginx/snippets/* setfiletype nginx
+    autocmd BufReadPost *
+        \ if &buftype ==# '' && &filetype !~# 'commit\|rebase'
+        \ && line("'\"") > 1 && line("'\"") <= line('$')
+        \ | execute "normal! g`\""
+        \ | endif
+augroup END

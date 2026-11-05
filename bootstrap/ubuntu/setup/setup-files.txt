@@ -15,8 +15,6 @@
 0600 /etc/skel/.profile
 0700 /etc/ssh
 0644 /etc/ssh/sshd_config
-0755 /etc/vim
-0644 /etc/vim/vimrc
 0600 /root/.bashrc
 0600 /root/.bunfig.toml
 0700 /root/.config

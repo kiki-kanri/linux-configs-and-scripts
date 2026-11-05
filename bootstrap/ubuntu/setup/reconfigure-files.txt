@@ -11,8 +11,6 @@
 0600 /etc/skel/.config/pnpm/config.yaml
 0600 /etc/skel/.npmrc
 0600 /etc/skel/.profile
-0755 /etc/vim
-0644 /etc/vim/vimrc
 0755 /scripts
 0700 /scripts/expand-disk-space.sh
 0700 /scripts/libs
