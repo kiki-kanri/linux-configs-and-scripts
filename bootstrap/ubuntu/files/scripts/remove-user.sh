@@ -1,81 +1,87 @@
 #!/usr/bin/env bash
 
-# Usage: sudo bash remove-user.sh ubuntu
-# Destructive: --remove-all-files also deletes owned files outside /home.
-# References:
-# https://manpages.ubuntu.com/manpages/noble/man8/deluser.8.html
-# https://www.freedesktop.org/software/systemd/man/latest/loginctl.html
+# shellcheck shell=bash
+# shellcheck disable=SC1091
 
 set -euo pipefail
 
-if [[ $# -ne 1 ]]; then
-    printf 'Usage: sudo bash %s USERNAME\n' "$0" >&2
-    exit 1
-fi
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+source "${SCRIPT_DIR}/libs/common.sh"
 
-TO_DEL_USER="$1"
+# Run
+main() {
+    local user_name passwd_entry account_name target_uid _
 
-# Require a literal username, never a UID, option, or path component.
-if [[ ! "${TO_DEL_USER}" =~ ^[a-zA-Z_][a-zA-Z0-9_.-]*[$]?$ ]]; then
-    printf 'Invalid username: %s\n' "${TO_DEL_USER}" >&2
-    exit 1
-fi
-
-if ((EUID != 0)); then
-    printf 'Run this script as root from another administrator account.\n' >&2
-    exit 1
-fi
-
-for command in getent loginctl deluser rm groupdel visudo; do
-    if ! command -v "${command}" >/dev/null 2>&1; then
-        printf 'Required command not found: %s\n' "${command}" >&2
-        exit 1
+    if [[ $# -ne 1 ]]; then
+        log_error "Usage: sudo bash $0 USERNAME"
+        return 1
     fi
-done
 
-# Only local accounts can be removed by deluser; do not resolve LDAP/NIS users.
-if ! passwd_entry="$(getent --service=files passwd "${TO_DEL_USER}")"; then
-    printf 'Local user not found: %s\n' "${TO_DEL_USER}" >&2
-    exit 1
-fi
+    user_name="$1"
 
-IFS=: read -r account_name _ target_uid _ <<<"${passwd_entry}"
-if [[ "${account_name}" != "${TO_DEL_USER}" || ! "${target_uid}" =~ ^[0-9]{1,10}$ ]]; then
-    printf 'Invalid local passwd entry for: %s\n' "${TO_DEL_USER}" >&2
-    exit 1
-fi
+    # Require a literal username, never a UID, option, or path component.
+    if [[ ! "${user_name}" =~ ^[a-zA-Z_][a-zA-Z0-9_.-]*[$]?$ ]]; then
+        log_error "Invalid username: ${user_name}"
+        return 1
+    fi
 
-if ((10#${target_uid} < 1000)); then
-    printf 'Refusing to delete %s: UID %s is below 1000.\n' "${TO_DEL_USER}" "${target_uid}" >&2
-    exit 1
-fi
+    require_root
+    require_cmd getent loginctl deluser rm groupdel visudo
 
-if [[ "${target_uid}" == "${SUDO_UID:-${EUID}}" ]]; then
-    printf 'Refusing to delete the invoking user; use another administrator account.\n' >&2
-    exit 1
-fi
+    # Only local accounts can be removed by deluser; do not resolve LDAP/NIS users.
+    if ! passwd_entry="$(getent --service=files passwd "${user_name}")"; then
+        log_error "Local user not found: ${user_name}"
+        return 1
+    fi
 
-visudo -c
+    IFS=: read -r account_name _ target_uid _ <<<"${passwd_entry}"
+    if [[ "${account_name}" != "${user_name}" || ! "${target_uid}" =~ ^[0-9]{1,10}$ ]]; then
+        log_error "Invalid local passwd entry for: ${user_name}"
+        return 1
+    fi
 
-# Disable lingering first so the user manager will not be kept after logout.
-loginctl disable-linger "${TO_DEL_USER}" 2>/dev/null || true
-loginctl terminate-user "${TO_DEL_USER}" 2>/dev/null || true
+    if ((10#${target_uid} < 1000)); then
+        log_error "Refusing to delete ${user_name}; UID is below 1000: ${target_uid}"
+        return 1
+    fi
 
-# Do not continue cleanup if account/file removal fails (e.g. remaining processes).
-deluser --remove-all-files "${TO_DEL_USER}"
+    if [[ "${target_uid}" == "${SUDO_UID:-${EUID}}" ]]; then
+        log_error 'Refusing to delete the invoking user; use another administrator account'
+        return 1
+    fi
 
-rm -rf -- \
-    "/home/${TO_DEL_USER:?}" \
-    "/var/mail/${TO_DEL_USER}" \
-    "/var/spool/mail/${TO_DEL_USER}" \
-    "/var/spool/cron/crontabs/${TO_DEL_USER}" \
-    "/etc/sudoers.d/${TO_DEL_USER}" \
-    "/etc/sudoers.d/90-${TO_DEL_USER}" \
-    "/var/lib/systemd/linger/${TO_DEL_USER}"
+    visudo -c
 
-# deluser may already have removed the private group; never force group removal.
-if getent --service=files group "${TO_DEL_USER}" >/dev/null; then
-    groupdel "${TO_DEL_USER}"
-fi
+    log_warn "Removing the account and all owned files, including outside /home: ${user_name}"
+    log_info "Cleaning up user sessions: ${user_name}..."
+    # logind may have no user state; session/linger cleanup is best-effort.
+    # Disable lingering first so the user manager will not be kept after logout.
+    loginctl disable-linger "${user_name}" 2>/dev/null || true
+    loginctl terminate-user "${user_name}" 2>/dev/null || true
 
-visudo -c
+    # Do not continue cleanup if account/file removal fails (e.g. remaining processes).
+    log_info "Removing the account and owned files: ${user_name}..."
+    deluser --remove-all-files "${user_name}"
+
+    log_info "Removing residual user paths: ${user_name}..."
+    rm -rf -- \
+        "/home/${user_name:?}" \
+        "/var/mail/${user_name}" \
+        "/var/spool/mail/${user_name}" \
+        "/var/spool/cron/crontabs/${user_name}" \
+        "/etc/sudoers.d/${user_name}" \
+        "/etc/sudoers.d/90-${user_name}" \
+        "/var/lib/systemd/linger/${user_name}"
+
+    # deluser may already have removed the private group; never force group removal.
+    if getent --service=files group "${user_name}" >/dev/null; then
+        log_info "Removing the user group: ${user_name}..."
+        groupdel "${user_name}"
+    fi
+
+    visudo -c
+    log_success "Removed user: ${user_name}"
+}
+
+main "$@"

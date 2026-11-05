@@ -22,6 +22,7 @@
 0600 /root/.config/pnpm/config.yaml
 0600 /root/.npmrc
 0600 /root/.profile
+0700 /scripts/create-user.sh
 0700 /scripts/expand-disk-space.sh
 0700 /scripts/libs
 0700 /scripts/libs/command.sh

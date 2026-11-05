@@ -12,6 +12,7 @@
 0600 /etc/skel/.npmrc
 0600 /etc/skel/.profile
 0755 /scripts
+0700 /scripts/create-user.sh
 0700 /scripts/expand-disk-space.sh
 0700 /scripts/libs
 0700 /scripts/libs/command.sh
