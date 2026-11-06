@@ -2,17 +2,23 @@ services:
   mongodb-main:
     command:
       - mongod
-      - --bind_ip_all
-      # - --keyFile
-      # - /data/configdb/keyfile
-      - --replSet
-      - rs0
+      - --config
+      - /opt/mongodb/mongod.conf
     container_name: mongodb-main
+    depends_on:
+      mongodb-main-permissions:
+        condition: service_completed_successfully
     entrypoint: /opt/mongodb/entrypoint.sh
     environment:
       GLIBC_TUNABLES: glibc.pthread.rseq=0
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, 'quit(db.adminCommand({ ping: 1 }).ok === 1 ? 0 : 1)']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     hostname: mongodb-main
-    image: 'mongodb/mongodb-community-server:8.3-ubuntu2204-slim'
+    image: 'mongodb/mongodb-community-server:9.0-ubi10-slim'
     logging:
       driver: json-file
       options:
@@ -35,7 +41,45 @@ services:
     volumes:
       - '${MONGODB_MAIN_BACKUPS_PATH:?must be set}:/mnt/backups'
       - '${MONGODB_MAIN_FILES_PATH:?must be set}:/data/db'
-      - ./opt:/opt/mongodb:ro
+      - './opt:/opt/mongodb:ro'
+      - './opt/mongosh.conf:/etc/mongosh.conf:ro'
+      - 'mongodb-main-config:/data/configdb'
+
+  mongodb-main-init:
+    command:
+      - --quiet
+      - --file
+      - /opt/mongodb/init.js
+    depends_on:
+      mongodb-main:
+        condition: service_healthy
+    entrypoint:
+      - mongosh
+      - 'mongodb://mongodb-main:27017/?directConnection=true'
+    image: 'mongodb/mongodb-community-server:9.0-ubi10-slim'
+    restart: no
+    volumes:
+      - './opt:/opt/mongodb:ro'
+      - './opt/mongosh.conf:/etc/mongosh.conf:ro'
+
+  mongodb-main-permissions:
+    command:
+      - -c
+      - |
+        mkdir -p /data/db /data/configdb /mnt/backups
+        chown -R 1000:1000 /data/db /data/configdb /mnt/backups
+        chmod -R u+rwX /data/db /data/configdb /mnt/backups
+        chmod 750 /data/db /data/configdb /mnt/backups
+    entrypoint:
+      - /bin/sh
+      - -eu
+    image: alpine:latest
+    network_mode: none
+    restart: no
+    user: root
+    volumes:
+      - '${MONGODB_MAIN_BACKUPS_PATH:?must be set}:/mnt/backups'
+      - '${MONGODB_MAIN_FILES_PATH:?must be set}:/data/db'
       - 'mongodb-main-config:/data/configdb'
 
 volumes:

@@ -10,14 +10,13 @@ sudo chmod -R u+rwX /data/databases/mongodb/main/data
 ## 啟動
 
 ```bash
-docker compose up -d mongodb-main
+docker compose up -d mongodb-main mongodb-main-init
 ```
 
-## 初始化 replica set
-
-```bash
-docker exec -it mongodb-main mongosh --eval 'rs.initiate()'
-```
+啟動時會先設定 data、backups 與 config 目錄權限，再啟動 MongoDB。
+`mongodb-main-init` 會在尚未初始化時建立單節點 replica set，並等待 PRIMARY；已有設定則保留。
+接著會自動將 FCV 從 8.3 升至 9.0；已是 9.0 則跳過，其他版本僅警告並保持不變，升降級中的狀態仍會報錯停止初始化工作。
+只啟動 `mongodb-main` 不會執行初始化工作；整個 Compose 專案一起啟動則會自動包含。
 
 ## 建立初始管理員
 
