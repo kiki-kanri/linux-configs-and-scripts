@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Platform detection helpers.
 
 # shellcheck shell=bash
-# shellcheck disable=SC2317
 
 if [[ -n "${SCRIPT_LIBS_PLATFORM_LOADED:-}" ]]; then
-    return 0 2>/dev/null || true
+    return 0
 fi
 
 SCRIPT_LIBS_PLATFORM_LOADED=1

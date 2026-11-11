@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Command and privilege checks.
 
 # shellcheck shell=bash
-# shellcheck disable=SC2317
 
 if [[ -n "${SCRIPT_LIBS_COMMAND_LOADED:-}" ]]; then
-    return 0 2>/dev/null || true
+    return 0
 fi
 
 SCRIPT_LIBS_COMMAND_LOADED=1

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Rust and Cargo helpers.
 
 # shellcheck shell=bash
-# shellcheck disable=SC2034,SC2154,SC2317
+# shellcheck disable=SC2034,SC2154
 
 if [[ -n "${SCRIPT_LIBS_RUST_LOADED:-}" ]]; then
-    return 0 2>/dev/null || true
+    return 0
 fi
 
 SCRIPT_LIBS_RUST_LOADED=1

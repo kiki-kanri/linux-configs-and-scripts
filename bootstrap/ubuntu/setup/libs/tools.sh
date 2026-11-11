@@ -36,7 +36,7 @@ install_scripts_repository() {
 
     log_info "Cloning linux-configs-and-scripts to: ${SCRIPTS_REPO_DIR}..."
     install -d -m 755 /scripts
-    rm -rf "${SCRIPTS_REPO_DIR}"
+    rm -rf -- "${SCRIPTS_REPO_DIR}"
     git clone "${REPO_URL}" "${SCRIPTS_REPO_DIR}"
     commit="$(git -C "${SCRIPTS_REPO_DIR}" rev-parse HEAD)"
     log_info "Installed repository commit: ${commit}"
