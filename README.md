@@ -1,6 +1,6 @@
 # linux-configs-and-scripts
 
-## Run bootstrap for Ubuntu 24.04 / 26.04
+## Run bootstrap for Ubuntu 24.04 / 26.04 / 26.10
 
 ```bash
 sudo bash -c "$(

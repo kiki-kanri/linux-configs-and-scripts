@@ -36,7 +36,7 @@ main() (
         # Debian 13 replaced dnsutils and removed software-properties-common.
         release_packages=(bind9-dnsutils)
         ;;
-    debian:12 | ubuntu:24.04 | ubuntu:26.04)
+    debian:12 | ubuntu:24.04 | ubuntu:26.04 | ubuntu:26.10)
         release_packages=(dnsutils software-properties-common)
         ;;
     *)

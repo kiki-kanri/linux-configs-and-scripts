@@ -23,7 +23,7 @@ main() {
     require_root
     source /etc/os-release
     case "${ID}:${VERSION_ID}" in
-    ubuntu:24.04 | ubuntu:26.04) ;;
+    ubuntu:24.04 | ubuntu:26.04 | ubuntu:26.10) ;;
     *)
         log_error "Unsupported release: ${PRETTY_NAME}"
         return 1

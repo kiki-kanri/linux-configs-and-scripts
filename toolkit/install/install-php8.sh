@@ -76,12 +76,12 @@ else
         require_cmd add-apt-repository
         add-apt-repository -y ppa:ondrej/php
         ;;
-    ubuntu:resolute)
+    ubuntu:resolute | ubuntu:stonking)
         log_info "Using the Ubuntu ${VERSION_CODENAME} repository for PHP ${PHP_VERSION}."
         ;;
     *)
         log_error "Unsupported operating system release: ${PRETTY_NAME:-unknown}."
-        log_error "Supported Ubuntu releases: 22.04 (jammy), 24.04 (noble), and 26.04 (resolute)."
+        log_error "Supported Ubuntu releases: 22.04 (jammy), 24.04 (noble), 26.04 (resolute), and 26.10 (stonking)."
         exit 1
         ;;
     esac

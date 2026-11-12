@@ -23,7 +23,7 @@ main() (
 
     source /etc/os-release
     case "${ID}:${VERSION_ID}" in
-    ubuntu:24.04 | ubuntu:26.04) ;;
+    ubuntu:24.04 | ubuntu:26.04 | ubuntu:26.10) ;;
     *)
         printf '[setup-ubuntu] ERROR: Unsupported release: %s\n' "${PRETTY_NAME}" >&2
         exit 1

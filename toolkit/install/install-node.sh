@@ -34,7 +34,7 @@ main() (
     require_root
     source /etc/os-release
     case "${ID}:${VERSION_ID}" in
-    debian:12 | debian:13 | ubuntu:24.04 | ubuntu:26.04) ;;
+    debian:12 | debian:13 | ubuntu:24.04 | ubuntu:26.04 | ubuntu:26.10) ;;
     *)
         log_error "Unsupported operating system release: ${PRETTY_NAME}"
         exit 1
