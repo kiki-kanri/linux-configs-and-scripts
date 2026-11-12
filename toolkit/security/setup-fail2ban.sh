@@ -49,7 +49,7 @@ write_sshd_jail() {
     fi
 
     # Read the effective config, including Include directives and multiple ports.
-    ports="$(/usr/sbin/sshd -T | awk '$1 == "port" && !seen[$2]++ { ports = ports ? ports "," $2 : $2 } END { print ports }')"
+    ports="$(/usr/sbin/sshd -T | awk 'tolower($1) == "port" && !seen[$2]++ { ports = ports ? ports "," $2 : $2 } END { print ports }')"
     if [[ -z "${ports}" ]]; then
         log_error 'No SSH port found in the effective sshd configuration'
         return 1
