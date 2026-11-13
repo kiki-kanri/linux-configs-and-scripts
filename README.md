@@ -34,7 +34,7 @@ BOOTSTRAP
 
 ## Nginx: restrict selected sites to Cloudflare
 
-For both new installations and hosts already installed with `build-nginx.sh`, run `sudo toolkit/service/setup-cloudflare-nginx.sh` to install or refresh the updater; there is no need to rebuild nginx. New `build-nginx.sh` runs the setup automatically. The updater installs `/etc/nginx/conf.d/cloudflare-nginx.conf`, which maintains both the trusted real-IP ranges and a `$from_cloudflare` check against the original TCP peer. The same verified Cloudflare IPv4/IPv6 lists feed both rules and are refreshed together by `cloudflare-nginx-update.timer`. Setup replaces the old real-IP updater, timer, and generated configuration.
+For both new installations and hosts already installed with `toolkit/install/nginx/run.sh`, run `sudo toolkit/service/setup-cloudflare-nginx.sh` to install or refresh the updater; there is no need to rebuild nginx. New `toolkit/install/nginx/run.sh` installs run the setup automatically. The updater installs `/etc/nginx/conf.d/cloudflare-nginx.conf`, which maintains both the trusted real-IP ranges and a `$from_cloudflare` check against the original TCP peer. The same verified Cloudflare IPv4/IPv6 lists feed both rules and are refreshed together by `cloudflare-nginx-update.timer`. Setup replaces the old real-IP updater, timer, and generated configuration.
 
 For each site that must not be reached directly through the origin IP, add this **inside its `server {}` block**, before any unconditional `return`:
 

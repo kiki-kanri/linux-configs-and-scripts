@@ -11,6 +11,7 @@ server {
 
     # Locations
     location / {
+        include public/proxies/default.conf;
         include public/proxies/websocket.conf;
         proxy_pass http://127.0.0.1:3000;
     }

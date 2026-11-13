@@ -1,6 +1,6 @@
 #include <tunables/global>
 
-# Shared baseline for build-nginx.sh; validate site-specific access before enforcing.
+# Shared baseline for toolkit/install/nginx/run.sh; validate site-specific access before enforcing.
 profile nginx /usr/sbin/nginx flags=(complain) {
     #include <abstractions/base>
     #include <abstractions/nameservice>
@@ -22,9 +22,10 @@ profile nginx /usr/sbin/nginx flags=(complain) {
 
     /usr/sbin/nginx mrix,
     /usr/lib/nginx/modules/*.so mr,
-    /opt/quictls-for-nginx/build/**.so* mr,
     /usr/share/GeoIP/ r,
     /usr/share/GeoIP/** r,
+    /var/lib/GeoIP/ r,
+    /var/lib/GeoIP/** r,
     /etc/ssl/certs/ r,
     /etc/ssl/certs/** r,
     /usr/share/ca-certificates/** r,
